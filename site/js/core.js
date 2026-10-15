@@ -4,7 +4,7 @@
    ============================================================ */
 
 const APP = {
-  version: '0.3.0',
+  version: '0.4.0',
   schema: 1,
   storageKey: 'shushoku-senko:autosave',
 };
