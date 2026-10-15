@@ -223,18 +223,30 @@ const Survey = {
       return { p, s, course, isNew: !s };
     });
   },
+  /** 1人の回答から、生徒・成績の進路希望に入れる内容（進学／就職のはっきりした回答のみ） */
+  patch(p) {
+    const o = {};
+    if (!p || !p.answered) return o;
+    const course = p.course === '進学' || p.course === '就職' ? p.course : '';
+    if (course) o.course = course;
+    if (course === '就職') {
+      if (['学校斡旋', '自己開拓', '公務員'].includes(p.jobMethod)) o.method = p.jobMethod;
+      if (p.job) o.hopeJob = p.job;
+    }
+    if (course === '進学' && p.destination) o.hope = p.destination;
+    return o;
+  },
+  /** いちばん新しい調査 */
+  latest() {
+    return [...(Store.data.surveys || [])].sort((a, b) => String(a.date || a.label || '').localeCompare(String(b.date || b.label || ''))).pop() || null;
+  },
   applyToStudents(survey) {
     let added = 0, updated = 0;
     for (const x of this.plan(survey)) {
       let s = x.s;
       if (!s) { s = blankStudent(x.p.no3); Store.data.students.push(s); added++; } else updated++;
       if (x.p.gender && !s.gender) s.gender = x.p.gender;
-      if (x.course) s.course = x.course;
-      if (x.course === '就職') {
-        if (['学校斡旋', '自己開拓', '公務員'].includes(x.p.jobMethod)) s.method = x.p.jobMethod;
-        if (x.p.job) s.hopeJob = x.p.job;
-      }
-      if (x.course === '進学' && x.p.destination) s.hope = x.p.destination;
+      Object.assign(s, this.patch(x.p));
     }
     Store.changed();
     return { added, updated };

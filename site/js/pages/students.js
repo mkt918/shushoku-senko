@@ -123,8 +123,9 @@ const StudentsPage = {
       { k: 'method', label: '受験方法', list: ['学校斡旋', '縁故', '公務員', '自営'], help: '「学校斡旋」または空欄で就職なら選考の対象' },
       { k: 'hope', label: '第1希望' },
       { k: 'hopeJob', label: '希望職種' },
-      { sec: '③ 評定', note: '数字をスペースまたはカンマで区切って入力（単位不認定は 1）。', cols: 1 },
-      { k: 'g1', label: '1年', wide: true }, { k: 'g2', label: '2年', wide: true }, { k: 'g3', label: '3年（1学期まで）', wide: true },
+      { type: 'derived', k: 'survey', label: '' },
+      { sec: '③ 評定', note: '科目ごとに 1〜5 を入力します（単位不認定は 1）。1つ入れると次の欄へ進みます。Excel などからの貼り付けもできます。', full: true, cols: 1 },
+      { type: 'derived', k: 'grades', label: '' },
       { sec: '④ 出欠（日数・回数）', cols: 4 },
       { type: 'caption', label: '欠席（日）' }, ...att('a'),
       { type: 'caption', label: '遅刻（回）' }, ...att('l'),
@@ -138,7 +139,7 @@ const StudentsPage = {
       { k: 'mogi', label: '校内模試の順位', type: 'number', narrow: true },
       { sec: '⑥ ポイント（自動計算）', note: '入力すると、その場で計算し直されます。' },
       { type: 'derived', k: 'points', label: '' },
-      { sec: '⑦ その他', full: true, cols: 2 },
+      { sec: '⑦ その他', cols: 1 },
       { k: 'disability', label: '報告書', type: 'checkbox', checkLabel: '様式13の（ ）内数（障害者数）に計上' },
       { k: 'group', label: '職場見学グループ', narrow: true },
       { k: 'note', label: 'メモ', type: 'textarea', wide: true },
@@ -147,26 +148,127 @@ const StudentsPage = {
 
   toForm(s) {
     const o = Object.assign({}, s);
-    ['y1', 'y2', 'y3'].forEach((y, i) => { o['g' + (i + 1)] = (s.grades[y] || []).join(' '); });
     [0, 1, 2].forEach(i => { o['a' + (i + 1)] = s.absent[i]; o['l' + (i + 1)] = s.late[i]; o['e' + (i + 1)] = s.early[i]; });
     return o;
   },
-  fromForm(v, s) {
-    const parseG = t => toHalf(t || '').split(/[\s,，、]+/).map(num).filter(x => x != null);
+  fromForm(v, s, grades) {
     ['no3', 'name', 'gender', 'no1', 'no2', 'course', 'method', 'hope', 'hopeJob', 'disc3', 'disc12', 'club3', 'captain', 'mogi', 'disability', 'group', 'note']
       .forEach(k => { s[k] = v[k]; });
     s.no3 = studentNo(v.no3);
     s.no1 = studentNo(v.no1);
     s.no2 = studentNo(v.no2);
     s.council = v.council || 0;
-    s.grades = { y1: parseG(v.g1), y2: parseG(v.g2), y3: parseG(v.g3) };
+    if (grades) s.grades = grades;
     s.absent = [v.a1, v.a2, v.a3]; s.late = [v.l1, v.l2, v.l3]; s.early = [v.e1, v.e2, v.e3];
     return s;
   },
 
+  /* ---------- 評定の表（科目ごとの欄） ---------- */
+  GRADE_ROWS: [['y1', '1年'], ['y2', '2年'], ['y3', '3年（1学期まで）']],
+  /** 画面の表から読む（空欄は null のまま、位置を保つ） */
+  readGrades(root) {
+    const o = {};
+    for (const [y] of this.GRADE_ROWS) o[y] = $$('[data-gy="' + y + '"]', root).map(c => num(toHalf(c.value)));
+    return o;
+  },
+  /** 空欄を詰めた形（保存用） */
+  gradesToObj(raw) {
+    const o = {};
+    for (const [y] of this.GRADE_ROWS) o[y] = (raw[y] || []).filter(x => x != null);
+    return o;
+  },
+  drawGrades(root, grades, extra = 0) {
+    const el = $('[data-derived="grades"]', root); if (!el) return;
+    const cols = Math.max(15, ...this.GRADE_ROWS.map(([y]) => (grades[y] || []).length)) + extra;
+    const cell = (y, i) => '<td><input data-gy="' + y + '" data-gi="' + i + '" maxlength="1" inputmode="numeric" autocomplete="off" value="' + esc((grades[y] || [])[i] ?? '') + '"></td>';
+    el.innerHTML = '<div class="g-wrap"><table class="gtbl"><thead><tr><th></th>' + Array.from({ length: cols }, (_, i) => '<th>' + (i + 1) + '</th>').join('') + '<th class="g-av">平均</th><th class="g-n">数</th></tr></thead><tbody>'
+      + this.GRADE_ROWS.map(([y, l]) => '<tr><th class="g-lab">' + l + '</th>' + Array.from({ length: cols }, (_, i) => cell(y, i)).join('') + '<td class="g-av" data-ga="' + y + '"></td><td class="g-n" data-gn="' + y + '"></td></tr>').join('')
+      + '</tbody></table></div><div class="g-foot"><button type="button" class="btn btn-sm" data-gadd>＋ 欄を増やす</button>'
+      + '<span class="g-all">評定平均（1年〜3年1学期の全科目）　<b data-gall>—</b>　<small data-gpt></small></span></div>';
+    this.updateGrades(root);
+  },
+  updateGrades(root) {
+    const raw = this.readGrades(root), all = [];
+    for (const [y] of this.GRADE_ROWS) {
+      const v = raw[y].filter(x => x != null);
+      all.push(...v);
+      const a = $('[data-ga="' + y + '"]', root), n = $('[data-gn="' + y + '"]', root);
+      if (a) a.textContent = v.length ? (v.reduce((p, q) => p + q, 0) / v.length).toFixed(3) : '';
+      if (n) n.textContent = v.length || '';
+    }
+    const avg = all.length ? all.reduce((p, q) => p + q, 0) / all.length : null;
+    const g = $('[data-gall]', root), pt = $('[data-gpt]', root);
+    if (g) g.textContent = avg == null ? '—' : avg.toFixed(3);
+    if (pt) pt.textContent = avg == null ? '' : '（学習ポイントでは小数第2位を四捨五入して ' + Points.round(avg, 1) + '）';
+  },
+  bindGrades(root) {
+    const el = $('[data-derived="grades"]', root); if (!el) return;
+    const rows = this.GRADE_ROWS.map(([y]) => y);
+    el.addEventListener('input', e => {
+      const t = e.target; if (!t.dataset.gy) return;
+      t.value = toHalf(t.value).replace(/[^1-5]/g, '');
+      if (t.value) { const nx = t.closest('td').nextElementSibling?.querySelector('input'); if (nx) { nx.focus(); nx.select(); } }
+      this.updateGrades(root);
+    });
+    el.addEventListener('keydown', e => {
+      const t = e.target; if (!t.dataset.gy) return;
+      const cells = $$('[data-gy="' + t.dataset.gy + '"]', el), i = cells.indexOf(t);
+      const go = c => { if (c) { e.preventDefault(); c.focus(); c.select(); } };
+      if (e.key === 'ArrowRight') go(cells[i + 1]);
+      else if (e.key === 'ArrowLeft') go(cells[i - 1]);
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { const r = rows.indexOf(t.dataset.gy) + (e.key === 'ArrowDown' ? 1 : -1); if (rows[r]) go($$('[data-gy="' + rows[r] + '"]', el)[i]); }
+      else if (e.key === 'Backspace' && !t.value) go(cells[i - 1]);
+    });
+    el.addEventListener('paste', e => {
+      const t = e.target; if (!t.dataset.gy) return;
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      if (!text || !/[\s,，、]/.test(text.trim())) return;
+      e.preventDefault();
+      const lines = text.trim().split(/\r?\n/).map(l => toHalf(l).split(/[\s,，、]+/).filter(Boolean));
+      const r0 = rows.indexOf(t.dataset.gy), c0 = Number(t.dataset.gi);
+      const need = c0 + Math.max(...lines.map(r => r.length));
+      const have = $$('[data-gy="y1"]', el).length;
+      const keep = this.readGrades(root);
+      if (need > have) this.drawGrades(root, keep, need - Math.max(15, ...rows.map(y => keep[y].length)));
+      lines.forEach((ln, ri) => { const y = rows[r0 + ri]; if (!y) return; const cells = $$('[data-gy="' + y + '"]', el); ln.forEach((v, ci) => { if (cells[c0 + ci] && /^[1-5]$/.test(v)) cells[c0 + ci].value = v; }); });
+      this.updateGrades(root); this.showPoints(root);
+    });
+    el.addEventListener('click', e => {
+      if (e.target.closest('[data-gadd]')) this.drawGrades(root, this.readGrades(root), 1);
+    });
+  },
+
+  /* ---------- 進路希望調査との連動 ---------- */
+  drawSurvey(root, autofill, force = false) {
+    const el = $('[data-derived="survey"]', root); if (!el) return;
+    const no = studentNo($('[data-k="no3"]', root).value);
+    const sv = Survey.latest();
+    const p = sv && no ? Survey.people(sv).find(x => x.no3 === no) : null;
+    const box = html => { el.innerHTML = '<div class="sv-link">' + html + '</div>'; };
+    if (!sv) { box('<b>進路希望調査</b>　まだ取り込まれていません。［進路希望調査］でFormsの回答を取り込むと、ここに回答が出ます。'); return; }
+    if (!no) { box('<b>進路希望調査（' + esc(sv.label) + '）</b>　3年番号を入れると、その生徒の回答が出ます。'); return; }
+    if (!p || !p.answered) { box('<b>進路希望調査（' + esc(sv.label) + '）</b>　<span class="tag tag-warn">未回答</span>'); return; }
+    const patch = Survey.patch(p);
+    const labels = { course: '進路', method: '受験方法', hopeJob: '希望職種', hope: '第1希望' };
+    if (autofill || force) {
+      let n = 0;
+      for (const k of Object.keys(patch)) {
+        const inp = $('[data-k="' + k + '"]', root);
+        if (inp && (force || !String(inp.value).trim()) && inp.value !== patch[k]) { inp.value = patch[k]; n++; }
+      }
+      if (n && !force) UI.toast('進路希望調査の回答を、進路希望の空欄に入れました');
+    }
+    const now = Form.read(root, this.fields());
+    const diff = Object.keys(patch).filter(k => String(now[k] || '') !== String(patch[k]));
+    const line = (k, v) => v ? '<span class="sv-i"><small>' + k + '</small>' + esc(v) + '</span>' : '';
+    box('<div class="sv-h"><b>進路希望調査（' + esc(sv.label) + '）の回答</b>'
+      + (diff.length ? '<span class="tag tag-warn">入力欄と違う：' + diff.map(k => labels[k]).join('・') + '</span><button type="button" class="btn btn-sm" data-svapply>回答を入力欄に反映</button>' : '<span class="tag tag-accent">入力欄と一致</span>') + '</div>'
+      + '<div class="sv-b">' + line('進路', p.course) + line('就職方法', p.jobMethod) + line('希望職種', p.job) + line('学校種別', p.school) + line('希望分野', p.field) + line('志望先', p.destination) + line('受験方法', p.method) + line('悩み', p.worry) + line('その他', p.other) + line('未定の理由', p.reason) + '</div>');
+  },
+
   showPoints(root) {
     const f = this.fields();
-    const s = this.fromForm(Form.read(root, f), blankStudent());
+    const s = this.fromForm(Form.read(root, f), blankStudent(), this.gradesToObj(this.readGrades(root)));
     const p = Points.calc(s, Store.data.settings.pointRules);
     $('[data-derived="points"]', root).innerHTML = `
       <div class="pt-sum">
@@ -182,8 +284,14 @@ const StudentsPage = {
     const fields = this.fields();
     const body = document.createElement('div');
     body.innerHTML = `<div class="fs-cols">${Form.html(fields, this.toForm(existing || blankStudent()))}</div>`;
-    body.addEventListener('input', () => this.showPoints(body));
+    this.drawGrades(body, existing ? existing.grades : blankStudent().grades);
+    this.bindGrades(body);
+    this.drawSurvey(body, true);
+    body.addEventListener('input', e => { if (e.target.matches('[data-k="no3"]')) this.drawSurvey(body, false); this.showPoints(body); });
     body.addEventListener('change', () => this.showPoints(body));
+    body.addEventListener('click', e => {
+      if (e.target.closest('[data-svapply]')) { this.drawSurvey(body, false, true); this.showPoints(body); }
+    });
     const buttons = [];
     if (existing) buttons.push({ label: '削除', kind: 'danger-ghost', value: 'delete' });
     buttons.push({ label: 'キャンセル', value: null });
@@ -196,7 +304,7 @@ const StudentsPage = {
         const dup = Students.byNo(no);
         if (dup && dup !== existing) { UI.toast(`番号 ${no} は既に登録されています`, 'warn'); return false; }
         const s = existing || blankStudent();
-        this.fromForm(v, s);
+        this.fromForm(v, s, this.gradesToObj(this.readGrades(root)));
         if (!existing) Store.data.students.push(s);
         Store.changed();
       },

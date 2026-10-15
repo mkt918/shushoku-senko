@@ -590,3 +590,28 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .mt-screen { padding: 16px 22px; background: #fff; }
 .oc-sec { margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--line); }
 .oc-sec h3 { margin-bottom: 6px; }
+
+/* チェックボックス・ラジオは、欄いっぱいに広げない */
+.field input[type=checkbox], .field input[type=radio] { width: auto; flex: none; }
+.field .check { min-height: 34px; }
+
+/* 生徒の編集：評定の表 */
+.g-wrap { overflow-x: auto; }
+.gtbl { border-collapse: collapse; font-size: 13px; }
+.gtbl th, .gtbl td { border: 1px solid var(--line); padding: 0; text-align: center; background: var(--surface); }
+.gtbl thead th { background: var(--surface-2); font-weight: 400; color: var(--ink-3); font-size: 11.5px; padding: 2px 0; min-width: 34px; }
+.gtbl .g-lab { text-align: left; padding: 0 10px; white-space: nowrap; background: var(--surface-2); font-weight: 700; font-size: 12.5px; }
+.gtbl td input { width: 34px; height: 30px; border: 0; text-align: center; font-size: 15px; padding: 0; background: transparent; border-radius: 0; }
+.gtbl td input:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft); }
+.gtbl .g-av, .gtbl .g-n { min-width: 64px; padding: 0 8px; font-variant-numeric: tabular-nums; background: var(--surface-2); }
+.gtbl .g-n { min-width: 36px; }
+.g-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.g-all b { font-size: 20px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.g-all small { color: var(--ink-3); }
+
+/* 生徒の編集：進路希望調査の回答 */
+.sv-link { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+.sv-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.sv-b { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.sv-i { display: inline-flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.sv-i small { color: var(--ink-3); font-size: 11px; }
