@@ -190,7 +190,7 @@ const Selection = {
   },
 
   async setSlotByShort(studentId, pref, value) {
-    const v = digits(value);
+    const v = toHalf(String(value ?? '')).trim();
     if (!v) { this.setSlot(studentId, pref, null); return; }
     const hits = Jobs.byShort(v);
     if (hits.length === 1) return this.setSlot(studentId, pref, hits[0].id);

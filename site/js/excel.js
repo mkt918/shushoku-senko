@@ -350,7 +350,7 @@ const ImportTypes = {
           visitOk: g('visitOk'), visitInfo: g('visitInfo'),
           employees: num(g('employees')), capital: num(g('capital')), salary: num(g('salary')), holidays: num(g('holidays')),
         };
-        const rc = digits(g('receiptNo'));
+        const rc = toHalf(g('receiptNo'));   // 受付番号は文字のまま（右から5文字を使う）
         if (rc) it.receiptNo = rc;
         const opens = ['open1', 'open2', 'open3'].map(k => num(g(k))).filter(v => v != null);
         it.openings = opens.length ? opens.reduce((a, b) => a + b, 0) : null;
@@ -432,7 +432,7 @@ const ImportTypes = {
         const inN = c.inPref >= 0 ? num(r[c.inPref]) : null, outN = c.outPref >= 0 ? num(r[c.outPref]) : null;
         it.workArea = outN && !inN ? '県外' : '県内';
         if (it.openings == null) it.openings = inN || outN || null;
-        if (it.receiptNo) it.receiptNo = digits(it.receiptNo).padStart(8, '0');
+        if (it.receiptNo) { it.receiptNo = toHalf(String(it.receiptNo)).trim(); if (/^d+$/.test(it.receiptNo)) it.receiptNo = it.receiptNo.padStart(8, '0'); }
         if (!['一般', '指名', '事前選考'].includes(it.kind)) it.kind = '一般';
         items.push(it);
       });
