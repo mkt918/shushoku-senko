@@ -623,3 +623,5 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .sel-g-m { color: #1f5f8b; }
 .sel-g-f { color: #b0386a; }
 .p-strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.tbl-sel th:nth-child(2), .tbl-sel td:nth-child(2) { min-width: 190px; }
+.tbl-sel td:nth-child(2) .stu-link { white-space: nowrap; }
