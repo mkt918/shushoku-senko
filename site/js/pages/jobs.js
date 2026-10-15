@@ -56,7 +56,8 @@ const JOB_FIELDS = [
 ];
 
 const Jobs = {
-  state: { q: '', kind: '', zone: '', ind: '', sort: 'short', dir: 'asc' },
+  state: { q: '', kind: '', zone: '', ind: '', sort: 'short', dir: 'asc', dupOnly: false },
+  _hideDup: false,
 
   all() { return Store.data.jobs; },
   byId(id) { return this.all().find(j => j.id === id); },
@@ -70,6 +71,21 @@ const Jobs = {
     const m = {};
     for (const j of this.all()) { const s = Derive.short(j); if (s) (m[s] = m[s] || []).push(j); }
     return Object.entries(m).filter(([, v]) => v.length > 1);
+  },
+
+  /** 受付番号・求人番号・事業所名・職種がすべて同じ求人のうち、削除してよい方（応募・希望で使われている方は残す） */
+  exactDups() {
+    const used = new Set(Store.data.applications.map(a => a.jobId));
+    const key = j => [Derive.short(j), digits(j.jobNumber), String(j.company || '').replace(/\s/g, ''), String(j.jobTitle || '').replace(/\s/g, '')].join('|');
+    const groups = new Map();
+    for (const j of this.all()) { if (!Derive.short(j)) continue; const k = key(j); (groups.get(k) || groups.set(k, []).get(k)).push(j); }
+    const extra = [];
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      const keep = g.find(j => used.has(j.id)) || g[0];
+      g.forEach(j => { if (j !== keep && !used.has(j.id)) extra.push(j); });
+    }
+    return extra;
   },
 
   row(j) {
@@ -89,6 +105,7 @@ const Jobs = {
     let rows = this.all().map(j => this.row(j));
     if (q) rows = rows.filter(r => [r.short, r.company, r.j.kana, r.jobTitle, r.workplace, r.j.jobNumber, r.j.receiptNo, r.office]
       .some(v => v != null && toHalf(v).toLowerCase().includes(q)));
+    if (st.dupOnly) { const ids = new Set(this.duplicates().flatMap(([, v]) => v.map(j => j.id))); rows = rows.filter(r => ids.has(r.j.id)); }
     if (st.kind) rows = rows.filter(r => r.kind === st.kind);
     if (st.zone) rows = rows.filter(r => r.zone === st.zone);
     if (st.ind) rows = rows.filter(r => r.ind === st.ind);
@@ -110,7 +127,14 @@ const Jobs = {
           <button class="btn btn-primary" id="jobNew">＋ 求人票を登録</button>
         </div>
       </div>
-      ${dups.length ? `<div class="notice notice-warn">受付番号の下5桁が重複しています：${dups.map(([k, v]) => `<b>${esc(k)}</b>（${v.length}件）`).join('、')}。選考会議では下5桁で求人を指定するため、受付番号を確認してください。</div>` : ''}
+      ${dups.length && !this._hideDup ? `<div class="notice notice-warn dup-bar">
+        <div>受付番号の下5桁が重複している求人が <b>${dups.length}</b> 組（${dups.reduce((n, [, v]) => n + v.length, 0)} 件）あります。選考会議では下5桁で求人を指定するため、同じ番号が複数あると選び直しになります。
+          ${dups.length <= 6 ? '例：' + dups.map(([k, v]) => `<b>${esc(k)}</b>（${v.length}件）`).join('、') : ''}</div>
+        <div class="btn-row">
+          <button class="btn btn-sm" id="dupShow">${st.dupOnly ? 'すべての求人を表示' : '重複している求人だけ表示'}</button>
+          <button class="btn btn-sm" id="dupMerge" ${this.exactDups().length ? '' : 'disabled'} title="受付番号・求人番号・事業所名・職種がすべて同じ求人を、1件にまとめます">完全に同じ求人を整理（${this.exactDups().length} 件）</button>
+          <button class="btn btn-sm" id="dupHide">この表示を閉じる</button>
+        </div></div>` : ''}
       <div id="watchBar"></div>
       <div class="toolbar">
         <input type="search" id="jobQ" placeholder="事業所名・職種・番号・就業場所で検索" value="${esc(st.q)}" class="grow">
@@ -129,6 +153,17 @@ const Jobs = {
     if (typeof WatchBar !== 'undefined') WatchBar.mount($('#watchBar', view), () => UI.refresh());
     $('#jobImport', view).addEventListener('click', () => Importer.run('jobs'));
     $('#jobBulk', view).addEventListener('click', () => this.bulkDelete());
+    const dupBtn = (id, fn) => { const b = $(id, view); if (b) b.addEventListener('click', fn); };
+    dupBtn('#dupShow', () => { st.dupOnly = !st.dupOnly; if (st.dupOnly) { st.sort = 'short'; st.dir = 'asc'; } UI.refresh(); });
+    dupBtn('#dupHide', () => { this._hideDup = true; st.dupOnly = false; UI.refresh(); });
+    dupBtn('#dupMerge', async () => {
+      const extra = this.exactDups();
+      if (!await UI.confirm(`受付番号・求人番号・事業所名・職種がすべて同じ求人が重複しています。\n先に登録された1件を残し、${extra.length} 件を削除します（応募・希望で使われている求人は、使われている方を残します）。`, { ok: '整理する', danger: true })) return;
+      const set = new Set(extra.map(j => j.id));
+      this._undo = Store.data.jobs.filter(j => set.has(j.id));
+      Store.data.jobs = Store.data.jobs.filter(j => !set.has(j.id));
+      Store.changed(); UI.refresh(); UI.toast(`${extra.length} 件を整理しました`);
+    });
     const un = $('#jobUndo', view);
     if (un) un.addEventListener('click', () => {
       Store.data.jobs.push(...this._undo);
