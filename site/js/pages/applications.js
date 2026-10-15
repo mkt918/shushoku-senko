@@ -44,7 +44,7 @@ const AppsPage = {
         <select id="apSort"><option value="no3">番号順</option><option value="exam" ${this.state.sort === 'exam' ? 'selected' : ''}>試験日順</option></select>
       </div>
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="apTable">
-        <thead><tr><th class="num">番号</th><th>氏名</th><th>次</th><th>応募先</th><th>書類送付</th><th>試験日</th><th>時間</th><th>合否</th><th>報告書（3日以内）</th><th>メモ</th></tr></thead>
+        <thead><tr><th class="num">番号</th><th>氏名</th><th>次</th><th>応募先</th><th>書類送付</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>報告書（3日以内）</th><th>メモ</th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
         : '<div class="empty"><p class="empty-title">該当する応募はありません</p><p>「選考会議」で応募先を確定すると、ここに並びます。</p></div>'}
 
@@ -108,7 +108,7 @@ const AppsPage = {
       <td class="nowrap">${ck('docsSent')} ${f('docsSentDate', 'date', 'w-date')}</td>
       <td>${f('examDate', 'date', 'w-date')}</td><td>${f('examTime', 'text', 'w-hm')}</td>
       <td><select data-aid="${a.id}" data-f="result">${RESULTS.map(r => `<option value="${r}" ${a.result === r ? 'selected' : ''}>${this.resultLabel(r)}</option>`).join('')}</select></td>
-      <td class="c">${ck('reportSubmitted')}</td><td>${f('note', 'text', 'w-memo')}</td></tr>`;
+      <td>${f('resultDate', 'date', 'w-date')}</td><td class="c">${ck('reportSubmitted')}</td><td>${f('note', 'text', 'w-memo')}</td></tr>`;
   },
 
   onEdit(el) {
@@ -118,10 +118,14 @@ const AppsPage = {
     a[k] = el.type === 'checkbox' ? el.checked : el.value.trim();
     if (k === 'examTime') { a[k] = el.value = VisitsPage.hm(el.value); }
     if (k === 'docsSent' && el.checked && !a.docsSentDate) a.docsSentDate = todayISO();
+    if (k === 'result') {      // 合否を選ぶと結果日に今日が入る（わからなければそのままでよい。空欄でも内定として数える）
+      if (a.result && !a.resultDate) a.resultDate = todayISO();
+      if (!a.result) a.resultDate = '';
+    }
     Store.changed();
     if (k === 'result') {
-      // 画面全体は描き直さず、この行の色と、上の人数・下の一覧だけ更新する（毎回の再表示をしない）
-      const tr = el.closest('tr'); if (tr) tr.className = 'res-' + (a.result || 'none');
+      // 画面全体は描き直さず、この行の色と結果日、上の人数・下の一覧だけ更新する（毎回の再表示をしない）
+      const tr = el.closest('tr'); if (tr) { tr.className = 'res-' + (a.result || 'none'); const d = tr.querySelector('[data-f="resultDate"]'); if (d) d.value = a.resultDate || ''; }
       this.redrawSummary();
     }
   },
