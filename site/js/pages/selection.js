@@ -359,11 +359,11 @@ const Selection = {
         ${Array.from({ length: PREF_N }, (_, i) => `<th>第${i + 1}希望</th>`).join('')}</tr></thead>
         <tbody>${rows.map(r => {
           const prefs = Apps.prefs(r.s.id);
-          return `<tr class="${r.s.gender === '男' ? 'p-shade' : ''}"><td class="num">${r.jobRank ?? ''}${r.jobRankTie ? '<span class="sm">同</span>' : ''}</td><td>${esc(r.s.no3)}</td><td>${esc(r.s.name)}</td><td class="c">${esc(r.s.gender)}</td>
+          return `<tr><td class="num">${r.jobRank ?? ''}${r.jobRankTie ? '<span class="sm">同</span>' : ''}</td><td>${esc(r.s.no3)}</td><td>${esc(r.s.name)}</td><td class="c">${esc(r.s.gender)}</td>
             <td class="num">${r.p.final ?? ''}</td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${r.s.mogi ?? ''}</td>
-            ${Array.from({ length: PREF_N }, (_, i) => { const a = prefs[i + 1]; return `<td class="sm">${cell(a, a && Jobs.byId(a.jobId), r)}</td>`; }).join('')}</tr>`;
+            ${Array.from({ length: PREF_N }, (_, i) => { const a = prefs[i + 1]; return `<td class="sm ${a && a.confirmed ? 'p-shade' : ''}">${cell(a, a && Jobs.byId(a.jobId), r)}</td>`; }).join('')}</tr>`;
         }).join('')}</tbody></table>
-        <p class="p-note">網掛けは男子。</p></div>`,
+        <p class="p-note">網掛け・◎は確定。取り消し線は、上位の人が確定済み（指名済）の求人。</p></div>`,
     });
   },
 
