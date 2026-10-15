@@ -1,0 +1,4 @@
+# 起動.bat は CRLF のままにする（LF だと cmd が正しく読めないことがある）
+*.bat text eol=crlf
+# 同梱の部品は、改行などを変えない
+site/lib/* -text

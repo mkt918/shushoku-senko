@@ -1,0 +1,24 @@
+# 許可リスト方式：ここに書いたもの以外は、すべて無視する（データを誤って上げないため）
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/.github/
+!/CLAUDE.md
+!/設計書.md
+!/00_設計プラン.md
+!/起動.bat
+!/site/
+!/tools/
+
+# 念のため：許可した場所の中でも、データになりうるものは無視する
+*.json
+*.xlsx
+*.xlsm
+*.xls
+*.docx
+*.csv
+*.tsv
+*.pdf
+*.zip
+*.log
