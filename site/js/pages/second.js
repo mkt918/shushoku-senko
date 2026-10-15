@@ -45,7 +45,7 @@ const SecondPage = {
       </div>
       ${Apps.currents().length ? SendDocs.html() : ''}
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="scTable">
-        <thead><tr><th class="num">就職順位</th><th class="num">番号</th><th>氏名</th><th>これまでの応募</th><th>次</th><th>応募先</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>メモ</th></tr></thead>
+        <thead><tr><th class="num">就職順位</th><th class="num">番号</th><th>氏名</th><th>前の応募（合否を直せます）</th><th>次</th><th>応募先</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>メモ</th><th></th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
         : `<div class="empty"><p class="empty-title">${all.length ? '該当する生徒はいません' : '2次応募の対象者はまだいません'}</p><p>「応募・受験」で合否を「不採用」または「辞退」にすると、ここに並びます。</p></div>`}
 `;
@@ -54,11 +54,49 @@ const SecondPage = {
     $$('[data-next]', view).forEach(b => b.addEventListener('click', () => AppsPage.addNext(b.dataset.next)));
     if ($('#sendCard', view)) SendDocs.bind($('#sendCard', view));
     const tbl = $('#scTable', view);
-    if (tbl) tbl.addEventListener('change', e => AppsPage.onEdit(e.target));
+    if (tbl) {
+      tbl.addEventListener('change', async e => {
+        const t = e.target;
+        AppsPage.onEdit(t);
+        if (t.dataset.f !== 'result') return;
+        // 前の応募の合否を「不採用・辞退」でなくしたとき：その後の2次以降の応募が残っていれば、取り消すか聞く
+        const a = Store.data.applications.find(x => x.id === t.dataset.aid);
+        if (a && a.result !== '不採用' && a.result !== '辞退') {
+          const later = Apps.of(a.studentId).filter(x => x.confirmed && x.round > a.round);
+          if (later.length && await UI.confirm(`合否を戻したので、この生徒の${later.map(x => x.round + '次').join('・')}の応募も取り消しますか？\n（取り消さないと、2次以降の応募が残ります）`, { ok: '2次以降も取り消す' })) {
+            Store.data.applications = Store.data.applications.filter(x => !later.includes(x));
+            Store.changed();
+          }
+        }
+        UI.refresh();      // 並び（応募先が未定／結果待ち）が変わるので、この画面は描き直す
+      });
+      tbl.addEventListener('click', async e => {
+        const b = e.target.closest('[data-delapp]'); if (!b) return;
+        const a = Store.data.applications.find(x => x.id === b.dataset.delapp); if (!a) return;
+        const j = Apps.job(a);
+        if (!await UI.confirm(`${a.round}次の応募（${j ? j.company : '求人なし'}）を取り消します。\n応募の記録（試験日・合否など）は消えます。`, { ok: '取り消す', danger: true })) return;
+        Store.data.applications = Store.data.applications.filter(x => x !== a);
+        Store.changed(); UI.refresh();
+        UI.toast(`${a.round}次の応募を取り消しました`);
+      });
+    }
+  },
+
+  /** 前の応募（合否を直せる）。応募先が未定の人は、いちばん新しい応募（不採用にした応募）も直せる */
+  histCell(s, includeCurrent) {
+    const cur = Apps.current(s.id);
+    const list = Apps.of(s.id).filter(a => a.confirmed && (includeCurrent || a !== cur)).sort((a, b) => a.round - b.round);
+    if (!list.length) return '<span class="sub">なし</span>';
+    return list.map(a => {
+      const j = Apps.job(a);
+      return `<div class="sc-h"><b>${a.round}次</b> ${esc(j ? j.company : '?')}
+        <select data-aid="${a.id}" data-f="result">${RESULTS.map(v => `<option value="${v}" ${a.result === v ? 'selected' : ''}>${AppsPage.resultLabel(v)}</option>`).join('')}</select>
+        ${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">取り消し</button>` : ''}</div>`;
+    }).join('');
   },
 
   rowHtml({ s, cur, wait, r }) {
-    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td><td class="sm">${AppsPage.history(s.id)}</td>`;
+    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td><td class="sm">${this.histCell(s, wait)}</td>`;
     if (wait) {
       return `<tr class="res-none">${head}<td class="c">${cur ? cur.round + 1 : 1}</td>
         <td colspan="7"><button class="btn btn-sm" data-next="${s.id}">${(cur ? cur.round + 1 : 1)}次の応募先を決める</button></td></tr>`;
@@ -67,9 +105,10 @@ const SecondPage = {
     const fld = (k, type = 'text', cls = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}">`;
     return `<tr class="res-${a.result || 'none'}">${head}<td class="c">${a.round}</td>
       <td class="sm">${job ? `<span class="mono">${esc(Derive.short(job))}</span> ${esc(job.company)}<br><span class="sub">${esc(job.jobTitle || '')}</span>` : '—'}</td>
-      <td>${fld('examDate', 'date', 'w-date')}</td><td>${fld('examTime', 'text', 'w-time')}</td>
-      <td><select data-aid="${a.id}" data-f="result">${RESULTS.map(v => `<option value="${v}" ${a.result === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></td>
-      <td>${fld('resultDate', 'date', 'w-date')}</td><td>${fld('note', 'text', 'w-memo')}</td></tr>`;
+      <td>${fld('examDate', 'date', 'w-date')}</td><td>${fld('examTime', 'text', 'w-hm')}</td>
+      <td><select data-aid="${a.id}" data-f="result">${RESULTS.map(v => `<option value="${v}" ${a.result === v ? 'selected' : ''}>${AppsPage.resultLabel(v)}</option>`).join('')}</select></td>
+      <td>${fld('resultDate', 'date', 'w-date')}</td><td>${fld('note', 'text', 'w-memo')}</td>
+      <td>${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">取り消し</button>` : ''}</td></tr>`;
   },
 };
 
