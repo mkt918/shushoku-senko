@@ -30,8 +30,18 @@ function main() {
       $('#btnSave').click();
     }
   });
+  const flush = () => { if (Store._timer) { clearTimeout(Store._timer); Store._timer = null; Store._writeAutosave(); } };
   window.addEventListener('beforeunload', e => {
+    flush();                                  // 0.4秒待たずに、一時保存を書いておく
     if (Store.dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+  window.addEventListener('pagehide', flush);
+  // 同じブラウザの別のタブで、このデータの一時保存が書き換えられたら知らせる（同時に編集すると、後から書いた方だけが残る）
+  let warned = 0;
+  window.addEventListener('storage', e => {
+    if (e.key !== APP.storageKey || Date.now() - warned < 60000) return;
+    warned = Date.now();
+    UI.toast('別のタブでもこのツールが開かれ、データが変更されました。同時に編集すると、後から保存した方だけが残ります。どちらか1つのタブで作業してください。', 'warn');
   });
   window.addEventListener('hashchange', () => UI.route());
 

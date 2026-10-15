@@ -120,7 +120,7 @@ const Jobs = {
       <div class="page-head">
         <div><h1>求人票</h1><p class="lead">求人票を1か所で管理します。選考会議・職場見学・送付状・報告は、すべてここの情報を使います。</p></div>
         <div class="head-actions">
-          ${this._undo ? `<button class="btn" id="jobUndo">直前の削除（${this._undo.length} 件）を元に戻す</button>` : ''}
+          ${this._undo ? `<button class="btn" id="jobUndo">直前の削除（求人 ${this._undo.jobs.length} 件${this._undo.apps.length ? '・応募 ' + this._undo.apps.length + ' 件' : ''}）を元に戻す</button>` : ''}
           <button class="btn btn-danger-ghost" id="jobBulk" ${this.all().length ? '' : 'disabled'}>一括削除…</button>
           <button class="btn" id="jobImport">Excel から取り込む</button>
           <button class="btn" id="jobTpl">様式をダウンロード</button>
@@ -160,14 +160,15 @@ const Jobs = {
       const extra = this.exactDups();
       if (!await UI.confirm(`受付番号・求人番号・事業所名・職種がすべて同じ求人が重複しています。\n先に登録された1件を残し、${extra.length} 件を削除します（応募・希望で使われている求人は、使われている方を残します）。`, { ok: '整理する', danger: true })) return;
       const set = new Set(extra.map(j => j.id));
-      this._undo = Store.data.jobs.filter(j => set.has(j.id));
+      this._undo = { jobs: Store.data.jobs.filter(j => set.has(j.id)), apps: [] };
       Store.data.jobs = Store.data.jobs.filter(j => !set.has(j.id));
       Store.changed(); UI.refresh(); UI.toast(`${extra.length} 件を整理しました`);
     });
     const un = $('#jobUndo', view);
     if (un) un.addEventListener('click', () => {
-      Store.data.jobs.push(...this._undo);
-      UI.toast(`${this._undo.length} 件を元に戻しました`);
+      Store.data.jobs.push(...this._undo.jobs);
+      Store.data.applications.push(...this._undo.apps);
+      UI.toast(`求人 ${this._undo.jobs.length} 件${this._undo.apps.length ? '・応募 ' + this._undo.apps.length + ' 件' : ''}を元に戻しました`);
       this._undo = null; Store.changed(); UI.refresh();
     });
     $('#jobTpl', view).addEventListener('click', () => Importer.templates(['jobs', 'handy']));
@@ -255,10 +256,12 @@ const Jobs = {
     const res = await UI.modal({ title: '求人票の一括削除', body, wide: true, buttons: [{ label: 'キャンセル', value: null }, { label: '削除する', kind: 'danger', value: 'ok', onClick: () => { if (!pick().ids.length) { UI.toast('削除する求人がありません', 'warn'); return false; } } }], onOpen: sum });
     if (res !== 'ok') return;
     const { ids } = pick();
-    if (!await UI.confirm(`求人票 ${ids.length} 件を削除します。よろしいですか？`, { ok: '削除する', danger: true })) return;
     const set = new Set(ids);
-    this._undo = Store.data.jobs.filter(j => set.has(j.id));
+    const apps = Store.data.applications.filter(a => set.has(a.jobId));
+    if (!await UI.confirm(`求人票 ${ids.length} 件を削除します。${apps.length ? `\nこの求人を使っている応募・希望 ${apps.length} 件も一緒に削除します（職場見学・合否などの記録も消えます）。` : ''}\nよろしいですか？`, { ok: '削除する', danger: true })) return;
+    this._undo = { jobs: Store.data.jobs.filter(j => set.has(j.id)), apps };
     Store.data.jobs = Store.data.jobs.filter(j => !set.has(j.id));
+    Store.data.applications = Store.data.applications.filter(a => !set.has(a.jobId));
     Store.changed();
     UI.refresh();
     UI.toast(`${ids.length} 件を削除しました`);
@@ -320,9 +323,10 @@ const Jobs = {
 
     if (res === 'delete') {
       const used = Store.data.applications.filter(a => a.jobId === existing.id).length;
-      const ok = await UI.confirm(`「${existing.company}　${existing.jobTitle || ''}」を削除します。${used ? `\nこの求人は ${used} 件の応募・希望で使われています。` : ''}`, { ok: '削除する', danger: true });
+      const ok = await UI.confirm(`「${existing.company}　${existing.jobTitle || ''}」を削除します。${used ? `\nこの求人は ${used} 件の応募・希望で使われています。応募・希望も一緒に削除します（職場見学・合否などの記録も消えます）。` : ''}`, { ok: '削除する', danger: true });
       if (ok) {
         Store.data.jobs = Store.data.jobs.filter(j => j.id !== existing.id);
+        Store.data.applications = Store.data.applications.filter(a => a.jobId !== existing.id);
         Store.changed();
         UI.refresh();
         UI.toast('削除しました');

@@ -15,11 +15,11 @@ const AppsPage = {
           : x.a.result === this.state.filter);
   },
 
-  /** 応募先がない、または直近の応募が不採用・辞退で次が必要な就職希望者 */
+  /** 直近の応募が不採用・辞退で、次の応募先が必要な就職希望者（1次が未確定の人は選考会議で決めるので含めない） */
   needNext() {
     return Store.data.students.filter(s => Students.isJobSeeker(s)).filter(s => {
       const a = Apps.current(s.id);
-      return !a || a.result === '不採用' || a.result === '辞退';
+      return a && (a.result === '不採用' || a.result === '辞退');
     });
   },
 
@@ -75,7 +75,7 @@ const AppsPage = {
   needHtml(need) {
     return need.length ? `<section class="card">
         <h2>次の応募先が必要な生徒</h2>
-        <p class="sub">応募先が未確定、または直近の結果が不採用・辞退の就職希望者です。</p>
+        <p class="sub">直近の結果が不採用・辞退の就職希望者です（1次の応募先が未確定の人は「選考会議」で決めます）。</p>
         <div class="table-wrap"><table class="tbl">
           <thead><tr><th class="num">番号</th><th>氏名</th><th>これまでの応募</th><th></th></tr></thead>
           <tbody>${need.map(s => `<tr><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td>
@@ -118,6 +118,7 @@ const AppsPage = {
     a[k] = el.type === 'checkbox' ? el.checked : el.value.trim();
     if (k === 'examTime') { a[k] = el.value = VisitsPage.hm(el.value); }
     if (k === 'docsSent' && el.checked && !a.docsSentDate) a.docsSentDate = todayISO();
+    if (k === 'docsSent') setTimeout(() => SendDocs.redraw(), 0);   // 上の送付カードの「未送付」を更新する
     if (k === 'result') {      // 合否を選ぶと結果日に今日が入る（わからなければそのままでよい。空欄でも内定として数える）
       if (a.result && !a.resultDate) a.resultDate = todayISO();
       if (!a.result) a.resultDate = '';
@@ -126,6 +127,9 @@ const AppsPage = {
     if (k === 'result') {
       // 画面全体は描き直さず、この行の色と結果日、上の人数・下の一覧だけ更新する（毎回の再表示をしない）
       const tr = el.closest('tr'); if (tr) { tr.className = 'res-' + (a.result || 'none'); const d = tr.querySelector('[data-f="resultDate"]'); if (d) d.value = a.resultDate || ''; }
+      // 絞り込み中で、合わなくなった行は消す（応募・受験の表だけ）
+      const f = this.state.filter;
+      if (tr && tr.closest('#apTable') && f && !(f === '未' ? !a.result : a.result === f)) tr.remove();
       this.redrawSummary();
     }
   },
@@ -134,7 +138,8 @@ const AppsPage = {
   async addNext(studentId) {
     const s = Students.byId(studentId);
     const cur = Apps.current(studentId);
-    const round = cur ? cur.round + 1 : 1;
+    if (!cur) { UI.toast('1次の応募先は「選考会議」で確定してください', 'warn'); return; }
+    const round = cur.round + 1;
     const body = document.createElement('div');
     body.innerHTML = `<p>${esc(Students.label(s))}　の <b>${round}次</b> の応募先</p>
       <input type="search" id="nxQ" class="w-full" placeholder="下4桁・事業所名・職種で検索"><div id="nxList" class="pick-list"></div>`;

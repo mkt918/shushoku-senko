@@ -240,15 +240,21 @@ const Survey = {
   latest() {
     return [...(Store.data.surveys || [])].sort((a, b) => String(a.date || a.label || '').localeCompare(String(b.date || b.label || ''))).pop() || null;
   },
-  /** 最新の調査の回答を、生徒・成績の「空欄」に入れる（入力済みの欄は変えない）。画面を開くたびに呼ぶ */
+  /**
+   * 最新の調査の回答を、生徒・成績の「空欄」に入れる（入力済みの欄は変えない）。
+   * 生徒ごとに1回だけ（svSynced に調査の id を残す）。あとで担当者が空欄に戻しても、埋め直さない。
+   */
   syncEmpty() {
     const sv = this.latest(); if (!sv || !Store.data) return 0;
-    let n = 0;
+    let n = 0, who = 0;
     for (const p of this.people(sv).filter(x => x.answered)) {
-      const s = Students.byNo(p.no3); if (!s) continue;
-      for (const [k, v] of Object.entries(this.patch(p))) if (!String(s[k] || '').trim()) { s[k] = v; n++; }
+      const s = Students.byNo(p.no3); if (!s || s.svSynced === sv.id) continue;
+      let filled = false;
+      for (const [k, v] of Object.entries(this.patch(p))) if (!String(s[k] || '').trim()) { s[k] = v; n++; filled = true; }
+      s.svSynced = sv.id;
+      if (filled) who++;
     }
-    if (n) Store.changed();
+    if (n) { Store.changed(); if (typeof UI !== 'undefined') UI.toast(`進路希望調査の回答を、${who} 人の進路希望の空欄に入れました`); }
     return n;
   },
   applyToStudents(survey) {
@@ -258,6 +264,7 @@ const Survey = {
       if (!s) { s = blankStudent(x.p.no3); Store.data.students.push(s); added++; } else updated++;
       if (x.p.gender && !s.gender) s.gender = x.p.gender;
       Object.assign(s, this.patch(x.p));
+      s.svSynced = survey.id;
     }
     Store.changed();
     return { added, updated };

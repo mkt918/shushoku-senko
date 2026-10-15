@@ -469,6 +469,7 @@ const Store = {
     return new Promise((resolve, reject) => {
       const inp = $('#fileInput');
       inp.value = '';
+      inp.addEventListener('cancel', () => resolve(false), { once: true });   // ファイル選択を取り消したとき
       inp.onchange = async () => {
         const f = inp.files[0];
         if (!f) return resolve(false);
@@ -681,6 +682,11 @@ const Apps = {
     return Store.data.students.map(s => ({ s, a: this.current(s.id) })).filter(x => x.a);
   },
   job(a) { return a ? Jobs.byId(a.jobId) : null; },
+  /** 職場見学・送付・試験・合否などの記録がある（確定済みも含む）。消す・付け替えるときは確認する */
+  hasRecord(a) {
+    return !!(a && (a.confirmed || a.visitCaller || a.visitDate || a.visitTime || a.visitNote || a.visitDone || a.docsSent
+      || a.examDate || a.examTime || a.result || a.resultDate || a.reportSubmitted || a.note));
+  },
   /** 内定者（基準日以前に内定したもの） */
   decided(asOf) {
     return this.currents().filter(({ a }) => a.result === '内定' && (!asOf || !a.resultDate || a.resultDate <= asOf));

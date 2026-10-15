@@ -287,7 +287,7 @@ const StudentsPage = {
     body.innerHTML = `<div class="fs-cols">${Form.html(fields, this.toForm(existing || blankStudent()))}</div>`;
     this.drawGrades(body, existing ? existing.grades : blankStudent().grades);
     this.bindGrades(body);
-    this.drawSurvey(body, true);
+    this.drawSurvey(body, !existing);   // 新しく追加する生徒だけ、空欄に調査の回答を入れる（既存の生徒は自動反映ずみ）
     body.addEventListener('input', e => { if (e.target.matches('[data-k="no3"]')) this.drawSurvey(body, false); this.showPoints(body); });
     body.addEventListener('change', () => this.showPoints(body));
     body.addEventListener('click', e => {

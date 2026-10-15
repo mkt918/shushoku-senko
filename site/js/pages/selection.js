@@ -225,16 +225,17 @@ const Selection = {
     });
   },
 
-  setSlot(studentId, pref, jobId) {
-    const prefs = Apps.prefs(studentId);
-    const a = prefs[pref];
-    if (!jobId) {
-      if (a) Store.data.applications = Store.data.applications.filter(x => x !== a);
-    } else if (a) {
-      a.jobId = jobId;
-    } else {
-      Store.data.applications.push(blankApplication(studentId, jobId, 1, pref));
+  /** 希望の求人を入れる・変える・消す。確定済みや記録（見学・送付・合否）がある希望は確認し、記録は新しい求人に引き継がない */
+  async setSlot(studentId, pref, jobId) {
+    const a = Apps.prefs(studentId)[pref];
+    if (a && a.jobId === jobId) { this.redrawRows(); return; }
+    if (a && Apps.hasRecord(a)) {
+      const j = Apps.job(a);
+      const ok = await UI.confirm(`第${pref}希望（${j ? j.company : '求人なし'}）は${a.confirmed ? '確定済みで、' : ''}職場見学・応募・合否などの記録を持っています。\n${jobId ? '別の求人に変える' : '消す'}と、この記録は消えます（新しい求人には引き継ぎません）。`, { ok: jobId ? '変える' : '消す', danger: true });
+      if (!ok) { this.redrawRows(); return; }
     }
+    if (a) Store.data.applications = Store.data.applications.filter(x => x !== a);
+    if (jobId) Store.data.applications.push(blankApplication(studentId, jobId, 1, pref));
     Store.changed();
     this.redrawRows();
   },

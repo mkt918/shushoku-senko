@@ -358,6 +358,14 @@ const SendDocs = {
 
   selected() { const set = this.state.sel; return this.groups().filter(g => set.has(g.job.id)); },
 
+  /** 送付カードだけを描き直す（送付済みの変更を反映） */
+  redraw() {
+    const c = $('#sendCard'); if (!c) return;
+    this.state.sel = null;
+    c.outerHTML = this.html();
+    this.bind($('#sendCard'));
+  },
+
   bind(root) {
     const st = this.state;
     const $c = s => $(s, root);

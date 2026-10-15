@@ -63,6 +63,8 @@ const Excel = {
     }
     return -1;
   },
+  /** 見出し行。見つからなければ先頭の行（列の対応を画面で指定するとき用） */
+  headerOr0(rows, patterns) { const i = this.findHeader(rows, patterns); return i >= 0 ? i : 0; },
   col(header, patterns) {
     for (const p of patterns) {
       const i = header.findIndex(c => p.test(this.norm(c)));
@@ -104,6 +106,16 @@ const Excel = {
    parse(rows) → { items: [...], skipped: [{row, reason}] }
    apply(items) → { added, updated }
    ============================================================ */
+/** 求人票の項目名（取り込み画面の「列の対応」に出す） */
+const COL_LABELS = {
+  receiptNo: '受付番号', employment: '雇用形態', company: '事業所名（必須）', kana: 'フリガナ', zip: '郵便番号', address: '所在地',
+  employees: '従業員数', jobTitle: '職種', capital: '資本金', business: '事業内容', workplace: '就業場所', salary: '基本給',
+  industryCode: '産業分類', occupationCode: '職業分類', holidays: '年間休日', jobNumber: '求人番号', dept: '応募・選考の部署',
+  contact: '応募・選考の担当者', tel: '電話番号', openings: '求人数', inPref: '県内（就業場所）の求人数', outPref: '県外（就業場所）の求人数',
+  kind: '区分（一般／指名／事前選考）', office: '受付安定所', workAddress: '就業場所の住所（県内・県外の判定）', occ5: '職業分類（5桁）',
+  occ3: '職業分類（3桁）', open1: '求人数（通勤）', open2: '求人数（住込）', open3: '求人数（不問）', visitOk: '職場見学の受け入れ', visitInfo: '職場見学の日程',
+};
+
 const NO3_PATTERNS = [/^3年.*番号/, /^(番号|学籍|学籍番号|CLNO|生徒番号|出席番号)$/i];
 
 /** 取り込む求人が、登録済みのどれにあたるか。byJobNumber＝求人番号を最優先にする（Handy） */
@@ -111,8 +123,13 @@ function jobMatch(it, byJobNumber) {
   const jobs = Store.data.jobs;
   const jn = digits(it.jobNumber);
   if (byJobNumber && jn.length >= 5) { const h = jobs.find(j => digits(j.jobNumber) === jn); if (h) return h; }
-  if (it.receiptNo) return jobs.find(j => j.receiptNo === it.receiptNo) || null;
-  if (byJobNumber && jn.length >= 5) return null;
+  if (it.receiptNo) { const h = jobs.find(j => j.receiptNo === it.receiptNo); if (h) return h; }
+  // 受付番号も求人番号もない求人（選考会議の取り込みなどで作ったもの）は、事業所名（＋職種）で照合して1つにまとめる
+  const ck = companyKey(it.company), tk = companyKey(it.jobTitle);
+  const loose = jobs.filter(j => !j.receiptNo && !digits(j.jobNumber) && ck && companyKey(j.company) === ck);
+  const lh = loose.find(j => tk && companyKey(j.jobTitle) === tk) || (loose.length === 1 ? loose[0] : null);
+  if (lh) return lh;
+  if (it.receiptNo || (byJobNumber && jn.length >= 5)) return null;
   return jobs.find(j => j.company === it.company && j.jobTitle === it.jobTitle) || null;
 }
 
@@ -177,7 +194,7 @@ const ImportTypes = {
         items.push({ no3, gender, mogi, slots });
         slots.forEach(s => { if (s.special) special++; else if (matchSelectionJob(s)) matched++; else toCreate++; });
       });
-      return { items, skipped, info: '希望 ' + (matched + toCreate + special) + ' 件のうち、登録済みの求人と一致 ' + matched + ' 件／新しく求人票を作る ' + toCreate + ' 件／求人以外（自己開拓・公務員・家事手伝・見送り）' + special + ' 件' };
+      return { items, skipped, info: (toCreate && toCreate >= matched ? '<注意> 登録済みの求人票と一致しない希望が多くあります。先に「求人票」で求人票を取り込んでから、この表を取り込んでください。' : '') + '希望 ' + (matched + toCreate + special) + ' 件のうち、登録済みの求人と一致 ' + matched + ' 件／新しく求人票を作る ' + toCreate + ' 件／求人以外（自己開拓・公務員・家事手伝・見送り）' + special + ' 件' };
     },
     apply(items) {
       let added = 0, updated = 0;
@@ -199,7 +216,10 @@ const ImportTypes = {
             Store.data.jobs.push(job);
           }
           const cur = Apps.prefs(s.id)[sl.pref];
-          if (cur) cur.jobId = job.id; else Store.data.applications.push(blankApplication(s.id, job.id, 1, sl.pref));
+          if (!cur || cur.jobId !== job.id) {      // 別の求人になったら、記録は引き継がずに作り直す
+            if (cur) Store.data.applications = Store.data.applications.filter(x => x !== cur);
+            Store.data.applications.push(blankApplication(s.id, job.id, 1, sl.pref));
+          }
           if (sl.confirmed) confirmedPref = sl.pref;
         }
         Apps.of(s.id).forEach(a => { if (a.round === 1) a.confirmed = a.pref === confirmedPref; });
@@ -426,11 +446,12 @@ const ImportTypes = {
       visitOk: [/^職場見学の受(け)?入(れ)?$/], visitInfo: [/^職場見学の日程$/],
     },
     parse(rows) {
-      const hi = Excel.findHeader(rows, [/^事業所名$/]);
+      const hi = Excel.headerOr0(rows, [/^事業所名$/]);
       const raw = rows[hi];
       const h = raw.map(c => Excel.norm(c));
       const c = {};
-      for (const [k, ps] of Object.entries(this.map)) c[k] = Excel.col(h, ps);
+      const ov = Importer.colOverride || {};   // 取り込み画面で指定した列（-1＝使わない）
+      for (const [k, ps] of Object.entries(this.map)) c[k] = ov[k] != null ? ov[k] : Excel.col(h, ps);
       if (c.company < 0) throw new Error('「事業所名」の列が見つかりません。');
       const used = new Set(Object.values(c).filter(v => v >= 0));
       const unknown = raw.map((x, i) => [x, i]).filter(([x, i]) => x != null && String(x).trim() && !used.has(i)).map(([x]) => String(x).replace(/\s+/g, ''));
@@ -453,12 +474,12 @@ const ImportTypes = {
         it.openings = opens.length ? opens.reduce((a, b) => a + b, 0) : null;
         // 就業場所が本校の県外か（住所の都道府県で判定。都道府県が書かれていない、または本校の県が未設定なら県内）
         const m = g('workAddress').match(/^(北海道|東京都|(?:京都|大阪)府|.{2,3}?県)/);
-        it.workArea = m && PREFS[Number(pref)] && !m[1].startsWith(PREFS[Number(pref)]) ? '県外' : '県内';
+        if (PREFS[Number(pref)]) it.workArea = m && !m[1].startsWith(PREFS[Number(pref)]) ? '県外' : '県内';   // 本校の県が未設定なら判定しない
         items.push(it);
       });
       const nrec = Object.values(c).filter(v => v >= 0).length;
       const noRc = items.filter(x => !x.receiptNo).length;
-      return { items, skipped, info: `認識した列 ${nrec} ／ ${Object.keys(this.map).length}${noRc ? `。<注意> 管理番号が空の求人 ${noRc} 件（選考会議で下4桁を使うには、取り込み後に受付番号の入力が必要です）` : ''}${unknown.length ? `。使わない列 ${unknown.length} 個：${unknown.slice(0, 10).join('、')}${unknown.length > 10 ? ' …' : ''}` : ''}` };
+      return { items, skipped, info: `${PREFS[Number(pref)] ? '' : '<注意> 「設定」の本校の都道府県番号が未入力のため、県内・県外は判定していません。'}認識した列 ${nrec} ／ ${Object.keys(this.map).length}${noRc ? `。<注意> 管理番号が空の求人 ${noRc} 件（選考会議で下4桁を使うには、取り込み後に受付番号の入力が必要です）` : ''}${unknown.length ? `。使わない列 ${unknown.length} 個：${unknown.slice(0, 10).join('、')}${unknown.length > 10 ? ' …' : ''}` : ''}` };
     },
     /** 取り込み用の様式：Handy の「求人票一覧ダウンロード（CSV）」と同じ見出し（70項目：説明資料の「読み取り項目」の一覧） */
     template() {
@@ -510,16 +531,17 @@ const ImportTypes = {
       openings: [/^求人数/], inPref: [/^県内/], outPref: [/^県外\(就業場所\)|^県外（就業場所）/], kind: [/^区分/],
     },
     parse(rows) {
-      const hi = Excel.findHeader(rows, [/^事業所名$/]);
+      const hi = Excel.headerOr0(rows, [/^事業所名$/]);
       const h = rows[hi].map(c => Excel.norm(c));
       const c = {};
-      for (const [k, ps] of Object.entries(this.map)) c[k] = Excel.col(h, ps);
+      const ov = Importer.colOverride || {};   // 取り込み画面で指定した列（-1＝使わない）
+      for (const [k, ps] of Object.entries(this.map)) c[k] = ov[k] != null ? ov[k] : Excel.col(h, ps);
       const items = [], skipped = [];
       const numeric = ['employees', 'capital', 'salary', 'holidays', 'openings'];
       rows.slice(hi + 1).forEach((r, i) => {
         const company = c.company >= 0 ? String(r[c.company] ?? '').trim() : '';
         if (!company) return;
-        const it = { kind: '一般' };
+        const it = {};
         for (const k of Object.keys(this.map)) {
           if (c[k] < 0 || k === 'inPref' || k === 'outPref') continue;
           const v = r[c[k]];
@@ -527,10 +549,10 @@ const ImportTypes = {
         }
         // 現行形式：県内／県外（就業場所）の列に求人数が入っている
         const inN = c.inPref >= 0 ? num(r[c.inPref]) : null, outN = c.outPref >= 0 ? num(r[c.outPref]) : null;
-        it.workArea = outN && !inN ? '県外' : '県内';
-        if (it.openings == null) it.openings = inN || outN || null;
+        if (c.inPref >= 0 || c.outPref >= 0) it.workArea = outN && !inN ? '県外' : '県内';   // 列があるときだけ
+        if (it.openings == null && (inN || outN)) it.openings = inN || outN;
         if (it.receiptNo) it.receiptNo = digits(it.receiptNo).padStart(8, '0');
-        if (!['一般', '指名', '事前選考'].includes(it.kind)) it.kind = '一般';
+        if ('kind' in it && !['一般', '指名', '事前選考'].includes(it.kind)) delete it.kind;   // 区分の列があり、正しい値のときだけ
         items.push(it);
       });
       return { items, skipped, info: `認識した列：${Object.values(c).filter(v => v >= 0).length} ／ ${Object.keys(this.map).length}` };
@@ -564,7 +586,9 @@ const ImportTypes = {
       let added = 0, updated = 0;
       for (const it of items) {
         const hit = jobMatch(it, false);
-        if (hit) { Object.assign(hit, it); updated++; } else { Store.data.jobs.push(Object.assign({ id: uid() }, it, Jobs.batchTag())); added++; }
+        const filled = Object.fromEntries(Object.entries(it).filter(([, v]) => v !== '' && v != null));
+        if (hit) { Object.assign(hit, filled); updated++; }        // 空欄のセルでは上書きしない（手で直した値を残す）
+        else { Store.data.jobs.push(Object.assign({ id: uid(), kind: '一般', workArea: '県内' }, filled, Jobs.batchTag())); added++; }
       }
       return { added, updated };
     },
@@ -617,6 +641,22 @@ const Importer = {
       <p class="help">入力用の様式が必要なときは、<button class="link-btn" id="impTpl">取り込み用Excelの様式をダウンロード</button>してください。</p>
       <div id="impPreview" class="imp-preview"></div>`;
     let parsed = null;
+    Importer.colOverride = {};
+    let mapOpen = false;
+    /** 列の対応（求人票の取り込みだけ）：自動で見つけた列を表示し、違えば選び直せる */
+    const mapHtml = (rows, T) => {
+      const hi = Excel.headerOr0(rows, [/^事業所名$/]);
+      const head = rows[hi] || [];
+      const h = head.map(c => Excel.norm(c));
+      const ov = Importer.colOverride;
+      const opts = cur => `<option value="-1" ${cur < 0 ? 'selected' : ''}>（使わない）</option>` + head.map((x, i) => x == null || String(x).trim() === '' ? '' : `<option value="${i}" ${cur === i ? 'selected' : ''}>${esc(XLSX.utils.encode_col(i))}列：${esc(String(x).replace(/\s+/g, ' ').slice(0, 24))}</option>`).join('');
+      const rowsHtml = Object.entries(T.map).map(([k, ps]) => {
+        const cur = ov[k] != null ? ov[k] : Excel.col(h, ps);
+        return `<label class="map-row"><span>${esc(COL_LABELS[k] || k)}</span><select data-map="${k}">${opts(cur)}</select></label>`;
+      }).join('');
+      return `<details class="imp-map" id="impMap" ${mapOpen ? 'open' : ''}><summary>列の対応を確認・変更する（見出しの名前が違うときは、ここで選び直します）</summary>
+        <p class="help">見出し行：${hi + 1}行目。項目ごとに、取り込む列を選んでください。</p><div class="map-grid">${rowsHtml}</div></details>`;
+    };
     const preview = () => {
       const sh = sheets.find(s => s.n === $('#impSheet', body).value);
       const type = $('#impType', body).value;
@@ -634,7 +674,13 @@ const Importer = {
           ${parsed.skipped.length ? `<div class="notice notice-warn">読み飛ばし ${parsed.skipped.length} 行：${parsed.skipped.slice(0, 8).map(x => `${x.row}行目（${esc(x.reason)}）`).join('、')}${parsed.skipped.length > 8 ? ' …' : ''}</div>` : ''}`;
       } catch (e) {
         parsed = null;
-        el.innerHTML = `<div class="notice notice-warn">${esc(e.message)}<br>シートか「取り込む内容」を選び直してください。</div>`;
+        el.innerHTML = `<div class="notice notice-warn">${esc(e.message)}<br>シートか「取り込む内容」を選び直してください${ImportTypes[type].map ? '（または下の「列の対応」で列を選んでください）' : ''}。</div>`;
+      }
+      if (ImportTypes[type].map) {
+        el.insertAdjacentHTML('beforeend', mapHtml(sh.rows, ImportTypes[type]));
+        const d = $('#impMap', el);
+        d.addEventListener('toggle', () => { mapOpen = d.open; });
+        $$('[data-map]', d).forEach(s => s.addEventListener('change', () => { Importer.colOverride[s.dataset.map] = Number(s.value); preview(); }));
       }
     };
     const res = await UI.modal({
@@ -646,11 +692,12 @@ const Importer = {
       onOpen: root => {
         $('#impType', root).value = first.type || preferType || 'grades';
         $('#impSheet', root).addEventListener('change', () => {
+          Importer.colOverride = {};
           const sh = sheets.find(s => s.n === $('#impSheet', root).value);
           if (sh.type) $('#impType', root).value = sh.type;
           preview();
         });
-        $('#impType', root).addEventListener('change', preview);
+        $('#impType', root).addEventListener('change', () => { Importer.colOverride = {}; preview(); });
         $('#impTpl', root).addEventListener('click', () => {
           const t = ImportTypes[$('#impType', root).value];
           if (t.template) t.template(); else UI.toast('この種類は様式がありません。Handy からダウンロードした CSV をそのまま選んでください');
@@ -658,11 +705,12 @@ const Importer = {
         preview();
       },
     });
-    if (res !== 'ok') return false;
+    if (res !== 'ok') { Importer.colOverride = null; return false; }
     const type = $('#impType', body).value;
     Jobs._batch = { impId: uid(), impAt: new Date().toLocaleString('sv-SE').slice(0, 16), impName: (file && file.name) || '' };   // 求人票の取り込みごとの目印（一括削除用）
     const r = ImportTypes[type].apply(parsed.items);
     Jobs._batch = null;
+    Importer.colOverride = null;
     if (file && typeof Watch !== 'undefined') Watch.mark(file, type);
     Store.changed();
     UI.toast(`取り込みました（追加 ${r.added} 件／更新 ${r.updated} 件）`);
