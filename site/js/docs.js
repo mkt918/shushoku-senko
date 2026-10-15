@@ -303,9 +303,21 @@ const Docs = {
    応募書類の送付（応募・受験ページに組み込むカード）
    ============================================================ */
 const SendDocs = {
-  state: { sel: null, showSent: false },
+  state: { sel: null, showSent: false, f: '' },
 
-  groups() { return Docs.jobGroups(a => a.confirmed && (this.state.showSent || !a.docsSent)); },
+  /** 送付先の状態の絞り込み：changed＝事業所と違う送付先／unchecked＝まだ確認していない／noaddr＝住所が空 */
+  match(job, f) {
+    const d = Derive.sendTo(job);
+    return f === 'changed' ? d.changed : f === 'unchecked' ? !job.sendChecked : f === 'noaddr' ? !d.address : true;
+  },
+  groups() {
+    return Docs.jobGroups(a => a.confirmed && (this.state.showSent || !a.docsSent)).filter(g => this.match(g.job, this.state.f));
+  },
+  /** 郵便番号を 000-0000 の形にそろえる */
+  zip(v) {
+    const d = toHalf(String(v ?? '')).replace(/[^0-9]/g, '');
+    return d.length === 7 ? d.slice(0, 3) + '-' + d.slice(3) : String(v ?? '').trim();
+  },
 
   html() {
     const groups = this.groups();
@@ -317,13 +329,19 @@ const SendDocs = {
         <label class="check sub"><input type="checkbox" id="sdShowSent" ${st.showSent ? 'checked' : ''}> 送付済みも表示</label></div>
       <p class="sub">確定した応募先を求人ごとにまとめています。送付状と宛名ラベル（送付先の変更は求人票の内容が使われます）を印刷し、発送したら「送付済みにする」を押します。</p>
       ${Docs.principalMissing() ? '<div class="notice notice-warn">校長名・進路指導主事名が未入力です。「設定」で入力してください（送付状・依頼文に入ります）。</div>' : ''}
+      <div class="toolbar"><span class="sub">送付先の確認・修正</span><div class="seg">${[['', 'すべて'], ['changed', '事業所と違う送付先'], ['unchecked', '未確認'], ['noaddr', '住所が空']].map(([v, l]) => `<button class="${st.f === v ? 'on' : ''}" data-sf-filter="${v}">${l}${v ? ' ' + Docs.jobGroups(a => a.confirmed && (st.showSent || !a.docsSent)).filter(g => this.match(g.job, v)).length : ''}</button>`).join('')}</div></div>
+      <p class="help">送付先は、空欄なら事業所の住所・部署・担当者を使います。変えたい項目だけ入力してください（直すと「確認」に自動でチェックが入ります）。</p>
       ${groups.length ? `<div class="table-wrap"><table class="tbl" id="sdTable">
-        <thead><tr><th><input type="checkbox" id="sdAll" ${groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th><th class="num">下4桁</th><th>事業所</th><th>職種</th><th>応募者</th><th>送付先</th></tr></thead>
-        <tbody>${groups.map(g => { const dest = Derive.sendTo(g.job); return `<tr>
+        <thead><tr><th><input type="checkbox" id="sdAll" ${groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th><th class="num">下4桁</th><th>事業所（事業所の所在地）</th><th>応募者</th><th>送付先〒</th><th>送付先の住所</th><th>部署</th><th>担当者</th><th title="送付先を確認したらチェック">確認</th><th></th></tr></thead>
+        <tbody>${groups.map(g => { const j = g.job, dest = Derive.sendTo(j); const sf = (k, ph, cls) => `<input data-sj="${j.id}" data-sf="${k}" value="${esc(j[k] || '')}" placeholder="${esc(ph || '')}" class="${cls}" autocomplete="off">`; return `<tr data-row="${j.id}" class="${dest.changed ? 'sd-changed' : ''}">
           <td><input type="checkbox" data-job="${g.job.id}" ${st.sel.has(g.job.id) ? 'checked' : ''}></td>
-          <td class="num mono">${esc(Derive.short(g.job))}</td><td>${esc(g.job.company)}</td><td>${esc(g.job.jobTitle || '')}</td>
+          <td class="num mono">${esc(Derive.short(j))}</td>
+          <td>${esc(j.company)} <span class="sd-tag">${dest.changed ? '<span class="tag tag-info">送付先を変更</span>' : ''}</span><br><span class="sub">${esc(j.jobTitle || '')}　〒${esc(j.zip || '')} ${esc(j.address || '（事業所の住所なし）')}</span></td>
           <td class="sm">${g.apps.map(x => esc(x.s.name) + (x.a.docsSent ? '<span class="tag tag-accent">済</span>' : '')).join('、')}</td>
-          <td class="sm">${dest.address ? esc(dest.address) : '<span class="tag tag-warn">住所未入力</span>'}${dest.changed ? ' <span class="tag tag-info">変更あり</span>' : ''}</td></tr>`; }).join('')}</tbody></table></div>
+          <td>${sf('sendZip', j.zip || '000-0000', 'w-zip')}</td><td>${sf('sendAddress', j.address || '住所', 'w-addr')}</td>
+          <td>${sf('sendDept', j.dept || '', 'w-dept')}</td><td>${sf('sendContact', j.contact || '', 'w-dept')}</td>
+          <td class="c"><input type="checkbox" data-sc="${j.id}" ${j.sendChecked ? 'checked' : ''}></td>
+          <td>${dest.changed ? `<button class="link-btn" data-sreset="${j.id}" title="送付先の変更を消して、事業所の住所に戻す">事業所と同じに戻す</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
       <div class="toolbar send-tools">
         <label class="inline">送付状の日付 <input type="date" id="sdDate" value="${esc(Docs.sendDateISO())}"></label>
         <label class="inline">ラベルの開始位置 <input type="number" id="sdStart" value="1" min="1" max="${Store.data.settings.labels.envelope.cols * Store.data.settings.labels.envelope.rows}" style="width:60px"></label>
@@ -343,13 +361,36 @@ const SendDocs = {
   bind(root) {
     const st = this.state;
     const $c = s => $(s, root);
+    $$('[data-sf-filter]', root).forEach(b => b.addEventListener('click', () => { st.f = b.dataset.sfFilter; st.sel = null; UI.refresh(); }));
     $c('#sdShowSent').addEventListener('change', e => { st.showSent = e.target.checked; st.sel = null; UI.refresh(); });
     $c('#sdExam').addEventListener('click', () => Docs.printExamList());
     $c('#sdExamX').addEventListener('click', () => Docs.excelExamList());
     const tbl = $c('#sdTable');
     if (!tbl) return;
     $c('#sdAll').addEventListener('change', e => { this.groups().forEach(g => e.target.checked ? st.sel.add(g.job.id) : st.sel.delete(g.job.id)); $$('[data-job]', tbl).forEach(c => { c.checked = e.target.checked; }); });
-    tbl.addEventListener('change', e => { const j = e.target.dataset.job; if (j) e.target.checked ? st.sel.add(j) : st.sel.delete(j); });
+    tbl.addEventListener('change', e => {
+      const t = e.target, j = t.dataset.job;
+      if (j) { t.checked ? st.sel.add(j) : st.sel.delete(j); return; }
+      if (t.dataset.sc) { const job = Jobs.byId(t.dataset.sc); if (job) { job.sendChecked = t.checked; Store.changed(); } return; }
+      if (t.dataset.sf) {
+        const job = Jobs.byId(t.dataset.sj); if (!job) return;
+        let v = t.value.trim();
+        if (t.dataset.sf === 'sendZip') { v = this.zip(v); t.value = v; }
+        if (v) job[t.dataset.sf] = v; else delete job[t.dataset.sf];
+        job.sendChecked = true;
+        Store.changed();
+        const row = t.closest('tr'), ch = Derive.sendTo(job).changed;
+        row.classList.toggle('sd-changed', ch);
+        $('.sd-tag', row).innerHTML = ch ? '<span class="tag tag-info">送付先を変更</span>' : '';
+        const cb = $('[data-sc]', row); if (cb) cb.checked = true;
+      }
+    });
+    tbl.addEventListener('click', e => {
+      const b = e.target.closest('[data-sreset]'); if (!b) return;
+      const job = Jobs.byId(b.dataset.sreset); if (!job) return;
+      ['sendZip', 'sendAddress', 'sendDept', 'sendContact'].forEach(k => { delete job[k]; });
+      Store.changed(); UI.refresh();
+    });
     $c('#sdDate').addEventListener('change', e => { Store.data.settings.docs.sendDate = e.target.value; Store.changed(); });
     $c('#sdCover').addEventListener('click', () => Docs.printCovers(this.selected()));
     $c('#sdLabel').addEventListener('click', () => Docs.printLabels(this.selected(), 'envelope', Math.max(1, num($c('#sdStart').value) || 1)));

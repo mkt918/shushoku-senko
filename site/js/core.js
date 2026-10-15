@@ -375,7 +375,7 @@ const Derive = {
     const alt = job.sendZip || job.sendAddress || job.sendDept || job.sendContact;
     return alt ? {
       zip: job.sendZip || job.zip, address: job.sendAddress || job.address,
-      dept: job.sendDept || '', contact: job.sendContact || '', changed: true,
+      dept: job.sendDept || job.dept || '', contact: job.sendContact || job.contact || '', changed: true,
     } : { zip: job.zip, address: job.address, dept: job.dept || '', contact: job.contact || '', changed: false };
   },
 };

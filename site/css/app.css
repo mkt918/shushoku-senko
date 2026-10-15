@@ -652,3 +652,11 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .tbl-visit .vc-title { margin: 0; font-size: 15px; }
 .tbl-visit .bulk { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .tbl-visit .vrow td { vertical-align: middle; }
+
+/* 応募書類の送付：送付先の確認・修正 */
+#sdTable td { vertical-align: top; }
+#sdTable input.w-zip { width: 92px; }
+#sdTable input.w-addr { width: 100%; min-width: 260px; }
+#sdTable input.w-dept { width: 120px; }
+#sdTable tr.sd-changed td { background: #f3f6fb; }
+#sdTable input::placeholder { color: var(--ink-3); opacity: .7; }
