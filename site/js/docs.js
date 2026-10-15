@@ -207,7 +207,7 @@ const Docs = {
 
   /* ---------- 電話連絡分担表 ---------- */
   callTable(groups) {
-    const head = ['担当', 'クラス', '番号', '氏名', '性別', '下5桁', '企業名', '職種', '窓口', 'TEL', '見学日', '時間', '備考', '済'];
+    const head = ['担当', 'クラス', '番号', '氏名', '性別', '下4桁', '企業名', '職種', '窓口', 'TEL', '見学日', '時間', '備考', '済'];
     const body = [];
     groups.forEach(g => g.apps.forEach(({ a, s }) => {
       const d = Derive.sendTo(g.job);
@@ -318,7 +318,7 @@ const SendDocs = {
       <p class="sub">確定した応募先を求人ごとにまとめています。送付状と宛名ラベル（送付先の変更は求人票の内容が使われます）を印刷し、発送したら「送付済みにする」を押します。</p>
       ${Docs.principalMissing() ? '<div class="notice notice-warn">校長名・進路指導主事名が未入力です。「設定」で入力してください（送付状・依頼文に入ります）。</div>' : ''}
       ${groups.length ? `<div class="table-wrap"><table class="tbl" id="sdTable">
-        <thead><tr><th><input type="checkbox" id="sdAll" ${groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th><th class="num">下5桁</th><th>事業所</th><th>職種</th><th>応募者</th><th>送付先</th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="sdAll" ${groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th><th class="num">下4桁</th><th>事業所</th><th>職種</th><th>応募者</th><th>送付先</th></tr></thead>
         <tbody>${groups.map(g => { const dest = Derive.sendTo(g.job); return `<tr>
           <td><input type="checkbox" data-job="${g.job.id}" ${st.sel.has(g.job.id) ? 'checked' : ''}></td>
           <td class="num mono">${esc(Derive.short(g.job))}</td><td>${esc(g.job.company)}</td><td>${esc(g.job.jobTitle || '')}</td>

@@ -32,7 +32,7 @@ const VisitsPage = {
     const st = this.state;
     if (!st.sel) st.sel = new Set(groups.map(g => g.job.id));
     return `<div class="table-wrap"><table class="tbl" id="vSel"><thead><tr><th><input type="checkbox" id="vAll" ${groups.length && groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th>
-      <th class="num">下5桁</th><th>事業所</th><th>職種</th><th>見学者</th><th>見学日</th><th>宛先</th></tr></thead>
+      <th class="num">下4桁</th><th>事業所</th><th>職種</th><th>見学者</th><th>見学日</th><th>宛先</th></tr></thead>
       <tbody>${groups.map(g => { const dest = Derive.sendTo(g.job); const dates = [...new Set(g.apps.map(x => x.a.visitDate).filter(Boolean))]; return `<tr>
         <td><input type="checkbox" data-job="${g.job.id}" ${st.sel.has(g.job.id) ? 'checked' : ''}></td>
         <td class="num mono">${esc(Derive.short(g.job))}</td><td>${esc(g.job.company)}</td><td>${esc(g.job.jobTitle || '')}</td>

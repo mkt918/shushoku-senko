@@ -7,7 +7,7 @@ const JOB_FIELDS = [
   { sec: '求人票の番号' },
   { k: 'kind', label: '区分', type: 'select', options: ['一般', '指名', '事前選考'], def: '一般', narrow: true,
     help: '指名・事前選考は受付番号がなくても登録できます' },
-  { k: 'receiptNo', label: '受付番号', ph: '07010011', help: '学校の受付番号。右から5文字が自動で使われます' },
+  { k: 'receiptNo', label: '受付番号', ph: '07010011', help: '学校の受付番号。下4桁（県外は下4桁）が自動で使われます' },
   { k: 'jobNumber', label: '求人番号', ph: '00000-12345', help: '先頭5桁から受理安定所と管内・管外を自動判定' },
   { k: 'openings', label: '本校への求人数', type: 'number', narrow: true, ph: '1' },
   { k: 'employment', label: '雇用形態', def: '正社員', list: ['正社員', '有期雇用', '無期雇用派遣労働者', '準職員'] },
@@ -63,14 +63,10 @@ const Jobs = {
   byId(id) { return this.all().find(j => j.id === id); },
   /** 枠の数（求人数）。空欄・0 は 1 人として扱う（求人票1枚に対して1人が就職できる前提） */
   capacity(job) { const n = num(job && job.openings); return n > 0 ? n : 1; },
-  /** 下5桁で検索（選考会議などで使う） */
-  byShort(s) {
-    const k = toHalf(String(s ?? '')).trim().toLowerCase();
-    const isNum = x => /^d+$/.test(x);
-    return this.all().filter(j => { const d = Derive.short(j).toLowerCase(); return d && (d === k || (isNum(d) && isNum(k) && Number(d) === Number(k))); });
-  },
+  /** 下4桁で検索（選考会議などで使う） */
+  byShort(s) { const k = String(num(s) ?? s); return this.all().filter(j => Derive.short(j) === k); },
 
-  /** 下5桁の重複 */
+  /** 下4桁の重複 */
   duplicates() {
     const m = {};
     for (const j of this.all()) { const s = Derive.short(j); if (s) (m[s] = m[s] || []).push(j); }
@@ -132,7 +128,7 @@ const Jobs = {
         </div>
       </div>
       ${dups.length && !this._hideDup ? `<div class="notice notice-warn dup-bar">
-        <div>受付番号の下5桁が重複している求人が <b>${dups.length}</b> 組（${dups.reduce((n, [, v]) => n + v.length, 0)} 件）あります。選考会議では下5桁で求人を指定するため、同じ番号が複数あると選び直しになります。
+        <div>受付番号の下4桁が重複している求人が <b>${dups.length}</b> 組（${dups.reduce((n, [, v]) => n + v.length, 0)} 件）あります。選考会議では下4桁で求人を指定するため、同じ番号が複数あると選び直しになります。
           ${dups.length <= 6 ? '例：' + dups.map(([k, v]) => `<b>${esc(k)}</b>（${v.length}件）`).join('、') : ''}</div>
         <div class="btn-row">
           <button class="btn btn-sm" id="dupShow">${st.dupOnly ? 'すべての求人を表示' : '重複している求人だけ表示'}</button>
@@ -182,7 +178,7 @@ const Jobs = {
     const rows = this.filtered();
     const st = this.state;
     const cols = [
-      ['short', '下5桁', 'num'], ['company', '事業所名'], ['jobTitle', '職種'], ['workplace', '就業場所'],
+      ['short', '下4桁', 'num'], ['company', '事業所名'], ['jobTitle', '職種'], ['workplace', '就業場所'],
       ['openings', '求人数', 'num'], ['zone', '職安'], ['ind', '産業'], ['size', '規模', 'num'], ['kind', '区分'],
     ];
     if (!this.all().length) {
@@ -283,7 +279,7 @@ const Jobs = {
     set('zone', zone ? `<b>${zone}</b> ${esc(office ? office + '安定所' : '')} ${Derive.pref(j) ? `<span class="sub">（${esc(Derive.pref(j))}）</span>` : ''}` : '<span class="sub">求人番号から自動</span>');
     const sh = Derive.short(j);
     const hint = $('[data-k="receiptNo"]', root).parentElement.querySelector('.help');
-    if (hint) hint.textContent = sh ? `右から5文字：${sh}` : '学校の受付番号。右から5文字が自動で使われます';
+    if (hint) hint.textContent = sh ? `選考会議で使う番号：${sh}` : '学校の受付番号。下4桁（県外は下4桁）が自動で使われます';
   },
 
   async edit(id, preset) {

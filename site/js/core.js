@@ -317,9 +317,10 @@ function normalizeData(d) {
    求人票の派生値
    ============================================================ */
 const Derive = {
-  /** 受付番号の右から5文字（そのまま。先頭の0も文字も残す） */
+  /** 選考会議で使う短い番号：受付番号の下4桁（数値化して先頭0を除く）。県外求人（20000台）は下4桁 */
   short(job) {
-    return toHalf(String(job.receiptNo ?? '')).trim().slice(-5);
+    const d = digits(job.receiptNo);
+    return d ? String(Number(d.slice(job.workArea === '県外' ? -5 : -4))) : '';
   },
   industry(code) {
     const d = digits(code);
