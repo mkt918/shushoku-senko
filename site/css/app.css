@@ -643,3 +643,12 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .sel-opts-body input { width: auto; }
 .tbl-sel.h-gender .c-gender, .tbl-sel.h-final .c-final, .tbl-sel.h-life .c-life, .tbl-sel.h-special .c-special, .tbl-sel.h-mogi .c-mogi { display: none; }
 .tbl-sel.h-job .slot-job, .tbl-sel.h-warn .slot-warn, .tbl-sel.h-whos .slot-whos, .tbl-sel.h-count .slot-cnt { display: none; }
+
+/* 職場見学：電話連絡・日程の表（事業所ごとにまとめる） */
+.w-hm { width: 62px !important; text-align: center; font-variant-numeric: tabular-nums; }
+.tbl-visit tbody.vgroup { border-top: 2px solid var(--line-strong); }
+.tbl-visit .vc-head td { background: var(--surface-2); padding: 8px 10px; }
+.tbl-visit .vc-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tbl-visit .vc-title { margin: 0; font-size: 15px; }
+.tbl-visit .bulk { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbl-visit .vrow td { vertical-align: middle; }

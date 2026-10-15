@@ -46,10 +46,18 @@ const VisitsPage = {
   },
   picked(groups) { return groups.filter(g => this.state.sel.has(g.job.id)); },
 
+  /** 時間を hh:mm にそろえる（930→09:30、9:30→09:30）。「9:00～」のような書き方は、そのまま */
+  hm(v) {
+    const s = toHalf(String(v ?? '')).replace(/[：.]/g, ':').trim();
+    const m = s.match(/^(\d{1,2}):?(\d{2})$/);
+    if (!m) return s;
+    return String(m[1]).padStart(2, '0') + ':' + m[2];
+  },
+
   /* ---------- 電話連絡・日程 ---------- */
   draw_plan(el, groups) {
     const callers = [...new Set(Store.data.applications.map(a => a.visitCaller).filter(Boolean))];
-    const inp = (a, k, type = 'text', cls = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}" ${k === 'visitCaller' ? 'list="callers"' : ''}>`;
+    const inp = (a, k, type = 'text', cls = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}" ${k === 'visitCaller' ? 'list="callers"' : ''} ${k === 'visitTime' ? 'maxlength="5" placeholder="hh:mm"' : ''}>`;
     el.innerHTML = `
       <datalist id="callers">${callers.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
       <div class="toolbar">
@@ -57,22 +65,28 @@ const VisitsPage = {
         <button class="btn" id="vXlsx">Excel に出力</button>
         <span class="sub">${groups.length} 社／${groups.reduce((n, g) => n + g.apps.length, 0)} 人</span>
       </div>
-      ${groups.map(g => { const j = g.job; const dest = Derive.sendTo(j); return `<section class="card visit-card" data-job="${j.id}">
-        <div class="card-head"><div><h3 class="vc-title"><span class="mono">${esc(Derive.short(j))}</span> ${esc(j.company)}　<span class="sub">${esc(j.jobTitle || '')}</span></h3>
-          <div class="sub">窓口：${esc([j.dept, j.contact].filter(Boolean).join('　') || '未入力')}　TEL：${esc(j.tel || '未入力')}　送付先：${esc(dest.address || '未入力')}${dest.changed ? '（変更あり）' : ''}${j.visitOk || j.visitInfo ? `<br>見学の受け入れ：${esc(j.visitOk || '')}　${esc(j.visitInfo || '')}` : ''}</div></div>
-          <button class="btn btn-sm" data-edit="${j.id}">求人票を開く</button></div>
-        <div class="bulk"><span class="sub">この求人の全員に</span>
-          <input placeholder="担当" list="callers" data-bulk="visitCaller" class="w-s"><input type="date" data-bulk="visitDate"><input placeholder="時間" data-bulk="visitTime" class="w-time">
-          <button class="btn btn-sm" data-apply="${j.id}">まとめて入力</button></div>
-        <table class="tbl tbl-edit"><thead><tr><th class="num">番号</th><th>氏名</th><th>担当</th><th>見学日</th><th>時間</th><th>備考（電話の内容など）</th><th>済</th></tr></thead>
-        <tbody>${g.apps.map(({ a, s }) => `<tr><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td>
-          <td>${inp(a, 'visitCaller', 'text', 'w-s')}</td><td>${inp(a, 'visitDate', 'date')}</td><td>${inp(a, 'visitTime', 'text', 'w-time')}</td>
-          <td>${inp(a, 'visitNote', 'text', 'w-memo2')}</td><td class="c"><input type="checkbox" data-aid="${a.id}" data-f="visitDone" ${a.visitDone ? 'checked' : ''}></td></tr>`).join('')}</tbody></table></section>`; }).join('')}`;
+      <div class="table-wrap"><table class="tbl tbl-edit tbl-visit">
+        <thead><tr><th>担当</th><th class="num">番号</th><th>氏名</th><th>事業所</th><th>見学日</th><th>時間</th><th>備考（電話の内容など）</th><th>済</th></tr></thead>
+        ${groups.map(g => { const j = g.job; const dest = Derive.sendTo(j); return `<tbody class="vgroup" data-job="${j.id}">
+          <tr class="vc-head"><td colspan="8">
+            <div class="vc-line"><h3 class="vc-title"><span class="mono">${esc(Derive.short(j))}</span> ${esc(j.company)}　<span class="sub">${esc(j.jobTitle || '')}</span>　<span class="tag">${g.apps.length}人</span></h3>
+              <button class="btn btn-sm" data-edit="${j.id}">求人票を開く</button></div>
+            <div class="sub">窓口：${esc([j.dept, j.contact].filter(Boolean).join('　') || '未入力')}　TEL：${esc(j.tel || '未入力')}　送付先：${esc(dest.address || '未入力')}${dest.changed ? '（変更あり）' : ''}${j.visitOk || j.visitInfo ? `　／　見学の受け入れ：${esc(j.visitOk || '')} ${esc(j.visitInfo || '')}` : ''}</div>
+            <div class="bulk"><span class="sub">この事業所の全員に</span>
+              <input placeholder="担当" list="callers" data-bulk="visitCaller" class="w-s"><input type="date" data-bulk="visitDate"><input placeholder="hh:mm" data-bulk="visitTime" class="w-hm" maxlength="5">
+              <button class="btn btn-sm" data-apply="${j.id}">まとめて入力</button></div></td></tr>
+          ${g.apps.map(({ a, s }) => `<tr class="vrow"><td>${inp(a, 'visitCaller', 'text', 'w-s')}</td><td class="num mono">${esc(s.no3)}</td><td class="nowrap">${esc(s.name)}</td>
+            <td class="sm"><span class="mono">${esc(Derive.short(j))}</span> ${esc(j.company)}</td>
+            <td>${inp(a, 'visitDate', 'date')}</td><td>${inp(a, 'visitTime', 'text', 'w-hm')}</td>
+            <td>${inp(a, 'visitNote', 'text', 'w-memo2')}</td><td class="c"><input type="checkbox" data-aid="${a.id}" data-f="visitDone" ${a.visitDone ? 'checked' : ''}></td></tr>`).join('')}
+        </tbody>`; }).join('')}
+      </table></div>`;
 
     el.addEventListener('change', e => {
       const t = e.target;
       if (t.dataset.aid) {
         const a = Store.data.applications.find(x => x.id === t.dataset.aid);
+        if (t.dataset.f === 'visitTime') t.value = VisitsPage.hm(t.value);
         a[t.dataset.f] = t.type === 'checkbox' ? t.checked : t.value.trim();
         Store.changed();
         if (t.dataset.f === 'visitDone' && this.state.onlyOpen) UI.refresh();
@@ -83,9 +97,9 @@ const VisitsPage = {
       if (ed) return Jobs.edit(ed.dataset.edit).then(() => UI.refresh());
       const ap = e.target.closest('[data-apply]');
       if (ap) {
-        const card = ap.closest('.visit-card');
+        const card = ap.closest('.vc-head');
         const g = groups.find(x => x.job.id === ap.dataset.apply);
-        $$('[data-bulk]', card).forEach(i => { if (i.value.trim()) g.apps.forEach(({ a }) => { a[i.dataset.bulk] = i.value.trim(); }); });
+        $$('[data-bulk]', card).forEach(i => { const v = i.dataset.bulk === 'visitTime' ? VisitsPage.hm(i.value) : i.value.trim(); if (v) g.apps.forEach(({ a }) => { a[i.dataset.bulk] = v; }); });
         Store.changed();
         UI.refresh();
       }
