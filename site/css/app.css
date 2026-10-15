@@ -694,3 +694,10 @@ details.card-fold > .card { border: 0; box-shadow: none; padding: 8px 0 0; margi
 /* 長い表は、見出しを画面の上に残す */
 .table-wrap:has(> #selTable), .table-wrap:has(> #apTable), .table-wrap:has(> #scTable) { max-height: calc(100vh - 120px); overflow: auto; }
 #selTable thead th, #apTable thead th, #scTable thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); }
+
+/* ホーム：内定状況 */
+.dash-tbl th, .dash-tbl td { text-align: center; }
+.dash-tbl tbody th, .dash-tbl tfoot th { text-align: left; white-space: nowrap; }
+.dash-tbl tfoot td, .dash-tbl tfoot th { border-top: 2px solid var(--line-strong); font-weight: 700; }
+.dash-todo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.dash-todo a.tag { text-decoration: none; font-size: 12.5px; padding: 2px 8px; }

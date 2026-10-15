@@ -129,6 +129,14 @@ const Settings = {
       </section>
 
       <section class="card">
+        <h2>自動バックアップ</h2>
+        ${Backup.supported() ? `<p>バックアップのフォルダ：<b id="bkName">確認中…</b></p>
+        <p class="help">フォルダを決めておくと、「上書き保存」「名前を付けて保存」のたびに、<b>日時入りのコピー</b>（例：就職選考データ_R8年度_バックアップ_20261016-1530.json）をそのフォルダに残します（10分に1回まで。新しい順に${Backup.KEEP}個を残し、古いものは消します）。暗号化の設定があれば、コピーも暗号化されます。保存先と同じく、校内の決められた場所（または USB）にしてください。</p>
+        <div class="btn-row"><button class="btn btn-primary" id="bkChoose">フォルダを選ぶ</button><button class="btn" id="bkNow">今すぐバックアップ</button><button class="btn btn-danger-ghost" id="bkOff">自動バックアップをやめる</button></div>`
+          : '<p class="help">このブラウザでは使えません（Edge／Chrome で開いてください）。</p>'}
+      </section>
+
+      <section class="card">
         <h2>データの暗号化（保存ファイルにパスワード）</h2>
         ${Crypt.ok() ? `<p>今の状態：<b>${Store.crypt ? '暗号化して保存します' : '暗号化していません'}</b></p>
         <p class="help">暗号化すると、保存した JSON ファイルとこのブラウザの一時保存が、パスワードなしでは読めなくなります（AES-GCM）。USB の紛失などに備えられます。<b>パスワードを忘れると、ファイルは二度と開けません。</b>紙に書いて、決められた場所に保管してください。設定したら「上書き保存」をすると、ファイルが暗号化されます。</p>
@@ -188,6 +196,29 @@ const Settings = {
     hs.forEach((h, i) => { h.id = 'set-' + i; });
     $('#setToc', view).innerHTML = hs.map((h, i) => `<a href="#" data-to="set-${i}">${esc(h.textContent)}</a>`).join('');
     $('#setToc', view).addEventListener('click', e => { const a = e.target.closest('[data-to]'); if (!a) return; e.preventDefault(); document.getElementById(a.dataset.to).scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    // 自動バックアップ
+    if (Backup.supported()) {
+      const showBk = async () => {
+        const h = await Backup.folder(), el = $('#bkName', view); if (!el) return;
+        if (!h) { el.textContent = '未設定'; $('#bkNow', view).disabled = true; $('#bkOff', view).disabled = true; return; }
+        const ok = await Backup.allowed(h, false), n = ok ? await Backup.count(h) : null;
+        el.textContent = `${h.name}${ok ? `（バックアップ ${n} 個）` : '（次の保存のときに、書き込みの許可を聞きます）'}${Backup.lastName ? '　最後に作ったもの：' + Backup.lastName : ''}`;
+      };
+      showBk();
+      $('#bkChoose', view).addEventListener('click', async () => {
+        try { const h = await Backup.choose(); UI.toast(`バックアップのフォルダを「${h.name}」にしました`); showBk(); }
+        catch (e) { if (e.name !== 'AbortError') UI.toast('フォルダを選べませんでした', 'warn'); }
+      });
+      $('#bkNow', view).addEventListener('click', async () => {
+        const n = await Backup.after(await Store._payload(), Store.fileName, true);
+        if (n) UI.toast('バックアップ：' + n);
+        showBk();
+      });
+      $('#bkOff', view).addEventListener('click', async () => {
+        if (!await UI.confirm('自動バックアップをやめます（フォルダの中のバックアップは消えません）。', { ok: 'やめる' })) return;
+        await Backup.forget(); showBk();
+      });
+    }
     // 暗号化
     const encSet = async (title) => {
       const pass = await UI.askPassword({ title, twice: true, ok: '決める', message: 'パスワードを決めてください（4文字以上）。忘れるとファイルを開けなくなります。' });

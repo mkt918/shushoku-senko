@@ -4,7 +4,7 @@
    ============================================================ */
 
 const APP = {
-  version: '0.4.0',
+  version: '0.5.0',
   schema: 1,
   storageKey: 'shushoku-senko:autosave',
 };
@@ -554,6 +554,7 @@ const Store = {
         await w.write(body);
         await w.close();
         this._saved();
+        this._backup(body);
         return true;
       } catch (e) {
         if (e.name === 'AbortError') return false;
@@ -575,6 +576,7 @@ const Store = {
         this.fileHandle = h;
         this.fileName = h.name;
         this._saved();
+        this._backup(body);
         return true;
       } catch (e) {
         if (e.name === 'AbortError') return false;
@@ -589,6 +591,11 @@ const Store = {
   },
 
   _saved() { this.dirty = false; this._writeAutosave(); this.emit(); },
+  /** 自動バックアップ（設定でフォルダを決めてあれば、日時入りのコピーを書く。失敗しても保存は成功のまま） */
+  _backup(body) {
+    if (typeof Backup === 'undefined') return;
+    Backup.after(body, this.fileName).then(n => { if (n && typeof UI !== 'undefined') UI.toast('バックアップ：' + n); }).catch(e => console.warn(e));
+  },
 };
 
 function downloadBlob(blob, name) {

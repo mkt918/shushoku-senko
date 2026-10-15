@@ -93,6 +93,11 @@
 - **本当の防御ではない**（ソースを読める人は回避できる。生徒のデータも暗号化されない）。「うっかり開かれない」ための鍵。本気で守るなら、保存する JSON をパスワードで暗号化する機能（WebCrypto の AES-GCM）を足す。ユーザーにもそう説明済み。
 - `app.js` の処理は `main()` にまとめてあり、`Auth.gate(main)` で始める。パスワードを通るまで、画面（ナビ・データ）は作られない。
 
+## 自動バックアップ・配布 zip（2026-10-16）
+
+- `js/backup.js`（`Backup`）：設定で選んだフォルダ（ハンドルは IndexedDB、キー `backupDir`。`Watch._db` を共用）に、保存のたびに `{ファイル名}_バックアップ_YYYYMMDD-HHMM.json` を書く。10分に1回まで、新しい30個を残す。`Store._backup(body)` から呼ぶ（失敗しても保存は成功のまま）。
+- 配布 zip は、Pages のデプロイで `tools/build_zip.py` を実行し、`site/download/shushoku-senko.zip` に置く。ホームの「配布用の zip」はインターネット上（localhost 以外の http/https）で開いたときだけ出る。zip はリポジトリに入れない（`dist/` は上げない）。
+
 ## 保存ファイルの暗号化（2026-10-16）
 
 - 設定の「データの暗号化」でパスワードを決めると、保存する JSON と一時保存（localStorage）を暗号化する。`core.js` の `Crypt`（PBKDF2-SHA256 20万回→AES-GCM 256）。鍵は `Store.crypt`（メモリだけ。パスワードは持たない）。

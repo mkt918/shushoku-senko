@@ -22,6 +22,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: 配布用 zip を作る（データは入らない。build_zip.py が検査する）
+        run: |
+          python3 tools/build_zip.py
+          mkdir -p site/download
+          cp dist/*.zip site/download/shushoku-senko.zip
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
