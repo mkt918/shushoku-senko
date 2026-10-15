@@ -53,7 +53,7 @@ const Selection = {
     view.innerHTML = `
       <div class="page-head">
         <div><h1>選考会議（1次）</h1>
-        <p class="lead">就職順位の順に、第1〜第5希望を<b>求人票の下4桁</b>で入力します（「…」で検索して選ぶこともできます）。確定する希望の<b>チェック（☑）</b>を入れてください（もう一度押すと外れます）。基本は<b>1人1社・求人1枚に1人</b>です。上位の人が確定した求人（確定がまだの人は、その人の第1希望）は、下位の欄が<b>灰色＋取り消し線</b>になり、誰が希望しているかを表示します（選ぶことはできます。募集が複数人の求人は、求人数を直してください）。</p></div>
+        <p class="lead">就職順位の順に、第1〜第5希望を<b>求人票の下5桁</b>で入力します（「…」で検索して選ぶこともできます）。確定する希望の<b>チェック（☑）</b>を入れてください（もう一度押すと外れます）。基本は<b>1人1社・求人1枚に1人</b>です。上位の人が確定した求人（確定がまだの人は、その人の第1希望）は、下位の欄が<b>灰色＋取り消し線</b>になり、誰が希望しているかを表示します（選ぶことはできます。募集が複数人の求人は、求人数を直してください）。</p></div>
         <div class="head-actions">
           <button class="btn" id="selAuto" ${seekers.length ? '' : 'disabled'}>上位から確定案を作る</button>
           <button class="btn" id="selXlsx" ${seekers.length ? '' : 'disabled'}>Excel に出力</button>
@@ -121,7 +121,7 @@ const Selection = {
       const who = others.map(e => `<span class="who ${e.a.confirmed ? 'who-conf' : ''}" title="${e.a.confirmed ? '確定' : '希望'}（第${e.a.pref}希望）">${e.rank === Infinity ? '–' : e.rank}位 ${esc(e.s.name || e.s.no3)}${e.a.confirmed ? '◎' : ''}</span>`).join('');
       return `<td class="slot ${a && a.confirmed ? 'is-conf' : ''} ${taken ? 'is-taken' : ''} ${over ? 'is-over' : ''}">
         <div class="slot-in">
-          <input class="slot-no" data-sid="${s.id}" data-pref="${p}" value="${esc(job ? Derive.short(job) : '')}" placeholder="${esc(job && !Derive.short(job) ? job.kind : '')}" inputmode="numeric" aria-label="第${p}希望の下4桁">
+          <input class="slot-no" data-sid="${s.id}" data-pref="${p}" value="${esc(job ? Derive.short(job) : '')}" placeholder="${esc(job && !Derive.short(job) ? job.kind : '')}" inputmode="numeric" aria-label="第${p}希望の下5桁">
           <button class="icon-btn slot-pick" data-sid="${s.id}" data-pref="${p}" title="求人を検索して選ぶ" aria-label="検索">…</button>
           ${a ? `<label class="slot-conf" title="この希望で確定"><input type="checkbox" data-sid="${s.id}" data-pref="${p}" ${a.confirmed ? 'checked' : ''}></label>` : ''}
         </div>
@@ -194,14 +194,14 @@ const Selection = {
     if (!v) { this.setSlot(studentId, pref, null); return; }
     const hits = Jobs.byShort(v);
     if (hits.length === 1) return this.setSlot(studentId, pref, hits[0].id);
-    if (!hits.length) { UI.toast(`下4桁「${v}」の求人票がありません`, 'warn'); this.redrawRows(); return; }
+    if (!hits.length) { UI.toast(`下5桁「${v}」の求人票がありません`, 'warn'); this.redrawRows(); return; }
     this.pickJob(studentId, pref, v);
   },
 
   /** 求人の検索・選択ダイアログ */
   async pickJob(studentId, pref, preset = '') {
     const body = document.createElement('div');
-    body.innerHTML = `<input type="search" id="pkQ" class="w-full" placeholder="下4桁・事業所名・職種で検索" value="${esc(preset)}">
+    body.innerHTML = `<input type="search" id="pkQ" class="w-full" placeholder="下5桁・事業所名・職種で検索" value="${esc(preset)}">
       <div id="pkList" class="pick-list"></div>
       <button class="btn btn-sm btn-danger-ghost" id="pkClear">この希望を空にする</button>`;
     let chosen;
@@ -241,7 +241,7 @@ const Selection = {
     const stats = [...this.jobStats().values()].sort((a, b) => (b.over - a.over) || (b.total - a.total));
     if (!stats.length) { el.innerHTML = '<p class="sub">まだ希望が入力されていません。</p>'; return; }
     el.innerHTML = `<div class="table-wrap"><table class="tbl tbl-click">
-      <thead><tr><th class="num">下4桁</th><th>事業所</th><th>職種</th><th class="num">求人数</th>
+      <thead><tr><th class="num">下5桁</th><th>事業所</th><th>職種</th><th class="num">求人数</th>
       ${Array.from({ length: PREF_N }, (_, i) => `<th class="num">第${i + 1}</th>`).join('')}<th class="num">希望計</th><th class="num">確定</th><th>状態</th></tr></thead>
       <tbody>${stats.map(x => `<tr data-job="${x.job ? x.job.id : ''}" class="${x.over ? 'row-over' : ''}">
         <td class="num mono">${esc(x.job ? Derive.short(x.job) : '')}</td><td>${esc(x.job ? x.job.company : '（削除済み）')}</td><td>${esc(x.job ? x.job.jobTitle : '')}</td>

@@ -180,7 +180,7 @@ const Reports = {
   /* ---------- 内定・受験一覧（内定状況調査資料） ---------- */
   draw_list(el) {
     const list = this.appList();
-    const head = ['大学科', '学科', '番号', '氏名', '性別', '次', '下4桁', '企業名', '職種', '就業場所', '合否', '就業区分', '職安区分', '産業', '職業(厚労省)', '職業(総務省)', '規模'];
+    const head = ['大学科', '学科', '番号', '氏名', '性別', '次', '下5桁', '企業名', '職種', '就業場所', '合否', '就業区分', '職安区分', '産業', '職業(厚労省)', '職業(総務省)', '規模'];
     const body = list.map(x => [x.major, x.dept, x.no3, x.name, x.gender, x.round, x.short, x.company, x.jobTitle, x.out, x.result, x.workZone, x.officeZone, x.ind, x.mhlw, x.mic, x.size]);
     this.drawGeneric(el, '内定・受験一覧', head, body, list.map(x => x.gender === '男'),
       '「就業場所」は県外のとき「外」。網掛けは男子（印刷時）。');

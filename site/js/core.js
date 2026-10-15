@@ -317,10 +317,10 @@ function normalizeData(d) {
    求人票の派生値
    ============================================================ */
 const Derive = {
-  /** 受付番号の下4桁（数値化して先頭0を除く：既存運用と同じ） */
+  /** 受付番号の下5桁（数値化して先頭0を除く：既存運用と同じ） */
   short(job) {
     const d = digits(job.receiptNo);
-    return d ? String(Number(d.slice(-4))) : '';
+    return d ? String(Number(d.slice(-5))) : '';
   },
   industry(code) {
     const d = digits(code);

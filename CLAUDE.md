@@ -48,7 +48,7 @@
 { app:'shushoku-senko', schema:1, year:2026, settings, tasks:{taskId:true}, imports:[], jobs:[], students:[], applications:[] }
 ```
 
-- **jobs**：`JOB_FIELDS`（jobs.js）のキー。`kind`（一般／指名／事前選考）、`receiptNo`（下4桁は `Derive.short`）、`jobNumber`（先頭5桁で受理安定所と管内・管外を判定）、`openings`（本校への求人数）、`workplace / workArea`（県内・県外）、`industryCode / occupationCode`、`dept / contact`（応募窓口）、`sendZip / sendAddress / sendDept / sendContact`（送付先の変更。`Derive.sendTo(job)` で最終の宛先が得られる）
+- **jobs**：`JOB_FIELDS`（jobs.js）のキー。`kind`（一般／指名／事前選考）、`receiptNo`（下5桁は `Derive.short`）、`jobNumber`（先頭5桁で受理安定所と管内・管外を判定）、`openings`（本校への求人数）、`workplace / workArea`（県内・県外）、`industryCode / occupationCode`、`dept / contact`（応募窓口）、`sendZip / sendAddress / sendDept / sendContact`（送付先の変更。`Derive.sendTo(job)` で最終の宛先が得られる）
 - **students**：`blankStudent()` を参照。`no3`（3年番号の文字列）で照合する。対象者の判定は `Students.isJobSeeker(s)`（進路＝就職、かつ受験方法が「学校斡旋」または空欄）
 - **applications**：`blankApplication()` を参照。
   - 1次＝`round:1`、第1〜第5希望は `pref`。確定したものは `confirmed:true`。

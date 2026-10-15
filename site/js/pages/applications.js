@@ -112,7 +112,7 @@ const AppsPage = {
     const round = cur ? cur.round + 1 : 1;
     const body = document.createElement('div');
     body.innerHTML = `<p>${esc(Students.label(s))}　の <b>${round}次</b> の応募先</p>
-      <input type="search" id="nxQ" class="w-full" placeholder="下4桁・事業所名・職種で検索"><div id="nxList" class="pick-list"></div>`;
+      <input type="search" id="nxQ" class="w-full" placeholder="下5桁・事業所名・職種で検索"><div id="nxList" class="pick-list"></div>`;
     let chosen = null;
     const used = new Set(Apps.of(studentId).filter(a => a.confirmed).map(a => a.jobId));
     const draw = () => {
