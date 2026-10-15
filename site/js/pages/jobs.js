@@ -103,6 +103,8 @@ const Jobs = {
       <div class="page-head">
         <div><h1>求人票</h1><p class="lead">求人票を1か所で管理します。選考会議・職場見学・送付状・報告は、すべてここの情報を使います。</p></div>
         <div class="head-actions">
+          ${this._undo ? `<button class="btn" id="jobUndo">直前の削除（${this._undo.length} 件）を元に戻す</button>` : ''}
+          <button class="btn btn-danger-ghost" id="jobBulk" ${this.all().length ? '' : 'disabled'}>一括削除…</button>
           <button class="btn" id="jobImport">Excel から取り込む</button>
           <button class="btn" id="jobTpl">様式をダウンロード</button>
           <button class="btn btn-primary" id="jobNew">＋ 求人票を登録</button>
@@ -126,6 +128,13 @@ const Jobs = {
     $('#jobNew', view).addEventListener('click', () => this.edit(null));
     if (typeof WatchBar !== 'undefined') WatchBar.mount($('#watchBar', view), () => UI.refresh());
     $('#jobImport', view).addEventListener('click', () => Importer.run('jobs'));
+    $('#jobBulk', view).addEventListener('click', () => this.bulkDelete());
+    const un = $('#jobUndo', view);
+    if (un) un.addEventListener('click', () => {
+      Store.data.jobs.push(...this._undo);
+      UI.toast(`${this._undo.length} 件を元に戻しました`);
+      this._undo = null; Store.changed(); UI.refresh();
+    });
     $('#jobTpl', view).addEventListener('click', () => Importer.templates(['jobs', 'handy']));
     redraw();
   },
@@ -143,10 +152,10 @@ const Jobs = {
       return;
     }
     el.innerHTML = `
-      <p class="count">${rows.length} 件 ${rows.length !== this.all().length ? `／ 全 ${this.all().length} 件` : ''}</p>
+      <p class="count">${rows.length} 件 ${rows.length !== this.all().length ? `／ 全 ${this.all().length} 件` : ''}${rows.length > this.SHOW ? `　<span class="sub">（先頭の ${this.SHOW} 件を表示。検索や絞り込みで探せます）</span>` : ''}</p>
       <div class="table-wrap"><table class="tbl tbl-click">
         <thead><tr>${cols.map(([k, l, c]) => `<th class="${c || ''} sortable ${st.sort === k ? 'sorted-' + st.dir : ''}" data-sort="${k}">${l}</th>`).join('')}</tr></thead>
-        <tbody>${rows.map(r => `<tr data-id="${r.j.id}">
+        <tbody>${rows.slice(0, this.SHOW).map(r => `<tr data-id="${r.j.id}">
           <td class="num mono">${esc(r.short ?? '')}</td>
           <td>${esc(r.company)}${r.j.sendAddress || r.j.sendZip ? ' <span class="tag tag-info" title="送付先の変更あり">送付先変更</span>' : ''}</td>
           <td>${esc(r.jobTitle)}</td>
@@ -164,6 +173,60 @@ const Jobs = {
       this.drawTable(el);
     }));
     $$('tbody tr', el).forEach(tr => tr.addEventListener('click', () => this.edit(tr.dataset.id)));
+  },
+
+  batchTag() { return this._batch ? Object.assign({}, this._batch) : {}; },
+  SHOW: 500,          // 一覧に出す最大件数（件数が多いと重くなるため）
+  _undo: null,        // 直前の削除（元に戻す用。ブラウザを閉じると消える）
+
+  /** 取り込みごとのまとまり（取り込みで追加した求人に目印が付く） */
+  batches() {
+    const m = new Map();
+    for (const j of this.all()) if (j.impId) {
+      if (!m.has(j.impId)) m.set(j.impId, { id: j.impId, at: j.impAt || '', name: j.impName || '', ids: [] });
+      m.get(j.impId).ids.push(j.id);
+    }
+    return [...m.values()].sort((a, b) => b.at.localeCompare(a.at));
+  },
+
+  /** 求人票の一括削除（間違えて大量に取り込んだとき用） */
+  async bulkDelete() {
+    const used = new Set(Store.data.applications.map(a => a.jobId));
+    const batches = this.batches();
+    const shown = this.filtered().map(r => r.j.id);
+    const opts = [
+      ['filtered', `今、画面に出ている求人（検索・絞り込みの結果）　<b>${shown.length}</b> 件`],
+      ...batches.map(b => ['b:' + b.id, `取り込み　${esc(b.at)}${b.name ? `「${esc(b.name)}」` : ''}で追加した求人　<b>${b.ids.length}</b> 件`]),
+      ['unused', `応募・希望に使われていない求人すべて　<b>${this.all().filter(j => !used.has(j.id)).length}</b> 件`],
+      ['all', `求人票のすべて　<b>${this.all().length}</b> 件`],
+    ];
+    const body = document.createElement('div');
+    body.innerHTML = `<p>削除する求人を選んでください。${batches.length ? '' : '<span class="sub">（このデータでは、取り込みごとの目印はまだありません。これからの取り込み分には付きます）</span>'}</p>
+      <div class="bulk-opts">${opts.map(([v, l], i) => `<label class="check"><input type="radio" name="bulk" value="${v}" ${i === 0 ? 'checked' : ''}> <span>${l}</span></label>`).join('')}</div>
+      <label class="check bulk-keep"><input type="checkbox" id="bulkKeep" checked> 選考会議・応募で使われている求人は残す</label>
+      <div class="notice notice-warn" id="bulkSum"></div>
+      <p class="sub">削除したあとは、この画面の「元に戻す」で戻せます（ブラウザを閉じるまで）。念のため、先に「名前を付けて保存」をおすすめします。</p>`;
+    const pick = () => {
+      const v = $('input[name=bulk]:checked', body).value, keep = $('#bulkKeep', body).checked;
+      let ids = v === 'filtered' ? shown : v === 'all' ? this.all().map(j => j.id) : v === 'unused' ? this.all().filter(j => !used.has(j.id)).map(j => j.id)
+        : (batches.find(b => 'b:' + b.id === v) || { ids: [] }).ids;
+      const kept = keep || v === 'unused' ? ids.filter(id => used.has(id)) : [];
+      ids = ids.filter(id => !kept.includes(id));
+      return { ids, kept };
+    };
+    const sum = () => { const { ids, kept } = pick(); $('#bulkSum', body).innerHTML = `<b>${ids.length}</b> 件を削除します。${kept.length ? `（応募・希望で使われている ${kept.length} 件は残します）` : ''}`; };
+    body.addEventListener('change', sum);
+    sum();
+    const res = await UI.modal({ title: '求人票の一括削除', body, wide: true, buttons: [{ label: 'キャンセル', value: null }, { label: '削除する', kind: 'danger', value: 'ok', onClick: () => { if (!pick().ids.length) { UI.toast('削除する求人がありません', 'warn'); return false; } } }], onOpen: sum });
+    if (res !== 'ok') return;
+    const { ids } = pick();
+    if (!await UI.confirm(`求人票 ${ids.length} 件を削除します。よろしいですか？`, { ok: '削除する', danger: true })) return;
+    const set = new Set(ids);
+    this._undo = Store.data.jobs.filter(j => set.has(j.id));
+    Store.data.jobs = Store.data.jobs.filter(j => !set.has(j.id));
+    Store.changed();
+    UI.refresh();
+    UI.toast(`${ids.length} 件を削除しました`);
   },
 
   updateDerived(root) {

@@ -390,7 +390,7 @@ const ImportTypes = {
           for (const [k, v] of Object.entries(it)) if (v !== '' && v != null) hit[k] = v;   // 空欄では上書きしない
           updated++;
         } else {
-          const n = Object.assign({ id: uid(), kind: '一般' }, it);
+          const n = Object.assign({ id: uid(), kind: '一般' }, it, Jobs.batchTag());
           Object.keys(n).forEach(k => { if (n[k] === '' || n[k] == null) delete n[k]; });
           Store.data.jobs.push(n);
           added++;
@@ -467,7 +467,7 @@ const ImportTypes = {
       let added = 0, updated = 0;
       for (const it of items) {
         const hit = jobMatch(it, false);
-        if (hit) { Object.assign(hit, it); updated++; } else { Store.data.jobs.push(Object.assign({ id: uid() }, it)); added++; }
+        if (hit) { Object.assign(hit, it); updated++; } else { Store.data.jobs.push(Object.assign({ id: uid() }, it, Jobs.batchTag())); added++; }
       }
       return { added, updated };
     },
@@ -563,7 +563,9 @@ const Importer = {
     });
     if (res !== 'ok') return false;
     const type = $('#impType', body).value;
+    Jobs._batch = { impId: uid(), impAt: new Date().toLocaleString('sv-SE').slice(0, 16), impName: (file && file.name) || '' };   // 求人票の取り込みごとの目印（一括削除用）
     const r = ImportTypes[type].apply(parsed.items);
+    Jobs._batch = null;
     if (file && typeof Watch !== 'undefined') Watch.mark(file, type);
     Store.changed();
     UI.toast(`取り込みました（追加 ${r.added} 件／更新 ${r.updated} 件）`);
