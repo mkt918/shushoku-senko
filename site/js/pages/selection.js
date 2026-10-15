@@ -314,12 +314,21 @@ const Selection = {
     UI.modal({ title: '確定案の結果', body: `<pre class="pre">${esc(msg.join('\n'))}</pre>` });
   },
 
+  /** 自分より上位の生徒で、この求人を確定している人（「何位 番号 氏名 指名済」） */
+  nominatedBy(stats, r, jobId) {
+    const x = stats.get(jobId); if (!x) return [];
+    const mine = (this._rank || new Map()).get(r.s.id) ?? Infinity;
+    return x.entries.filter(e => e.s.id !== r.s.id && e.a.confirmed && e.rank < mine)
+      .map(e => `${e.rank < 1e6 ? e.rank + '位' : '順位なし'} ${e.s.no3} ${e.s.name || ''} 指名済`);
+  },
+
   table() {
     const head = ['順位', '番号', '氏名', '性別', '学科', '最終P', '生活P', '特活P', '模試', ...Array.from({ length: PREF_N }, (_, i) => `第${i + 1}希望`), '確定'];
+    const stats = this.jobStats();
     const body = this.seekers().map(r => {
       const prefs = Apps.prefs(r.s.id);
       const conf = Object.values(prefs).find(a => a.confirmed);
-      const lab = a => { if (!a) return ''; const j = Jobs.byId(a.jobId); return j ? `${Derive.short(j) ? '[' + Derive.short(j) + '] ' : ''}${j.company}／${j.jobTitle || ''}` : ''; };
+      const lab = a => { if (!a) return ''; const j = Jobs.byId(a.jobId); return j ? `${Derive.short(j) ? '[' + Derive.short(j) + '] ' : ''}${j.company}／${j.jobTitle || ''}／求人${Jobs.capacity(j)}人${this.nominatedBy(stats, r, a.jobId).map(n => '\n' + n).join('')}` : ''; };
       return [r.jobRank ?? '', Number(r.s.no3), r.s.name, r.s.gender, (Students.dept(r.s) || {}).short || '', r.p.final ?? '', r.p.life, r.p.special, r.s.mogi ?? '',
         ...Array.from({ length: PREF_N }, (_, i) => lab(prefs[i + 1])), conf ? `第${conf.pref}希望` : ''];
     });
@@ -329,7 +338,14 @@ const Selection = {
   print() {
     const rows = this.seekers();
     const title = `${nendoLabel(Store.data.year)}　学校斡旋就職希望者　選考会議資料`;
-    const cell = (a, j) => a ? `<div class="${a.confirmed ? 'p-conf' : ''}">${a.confirmed ? '◎ ' : ''}${esc(j ? (Derive.short(j) ? Derive.short(j) + ' ' : '') + j.company : '')}<br><span class="sm">${esc(j ? j.jobTitle || '' : '')}</span></div>` : '';
+    const stats = this.jobStats();   // 上位の確定を調べる（順位は this._rank）
+    const cell = (a, j, r) => {
+      if (!a) return '';
+      const nom = this.nominatedBy(stats, r, a.jobId);
+      return `<div class="${a.confirmed ? 'p-conf' : ''}">${a.confirmed ? '◎ ' : ''}${esc(j ? (Derive.short(j) ? Derive.short(j) + ' ' : '') + j.company : '')}<br>`
+        + `<span class="sm">${esc(j ? j.jobTitle || '' : '')}${j ? `　求人${Jobs.capacity(j)}人` : ''}</span>`
+        + nom.map(n => `<br><span class="sm p-nom">${esc(n)}</span>`).join('') + `</div>`;
+    };
     Print.open({
       title, orientation: 'landscape', margin: '8mm',
       html: `<div class="p-page"><p class="p-title">${esc(title)}</p>
@@ -340,7 +356,7 @@ const Selection = {
           const prefs = Apps.prefs(r.s.id);
           return `<tr class="${r.s.gender === '男' ? 'p-shade' : ''}"><td class="num">${r.jobRank ?? ''}${r.jobRankTie ? '<span class="sm">同</span>' : ''}</td><td>${esc(r.s.no3)}</td><td>${esc(r.s.name)}</td><td class="c">${esc(r.s.gender)}</td>
             <td class="num">${r.p.final ?? ''}</td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${r.s.mogi ?? ''}</td>
-            ${Array.from({ length: PREF_N }, (_, i) => { const a = prefs[i + 1]; return `<td class="sm">${cell(a, a && Jobs.byId(a.jobId))}</td>`; }).join('')}</tr>`;
+            ${Array.from({ length: PREF_N }, (_, i) => { const a = prefs[i + 1]; return `<td class="sm">${cell(a, a && Jobs.byId(a.jobId), r)}</td>`; }).join('')}</tr>`;
         }).join('')}</tbody></table>
         <p class="p-note">網掛けは男子。</p></div>`,
     });

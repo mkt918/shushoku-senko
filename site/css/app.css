@@ -615,3 +615,5 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .sv-b { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .sv-i { display: inline-flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .sv-i small { color: var(--ink-3); font-size: 11px; }
+
+.p-nom { font-weight: 700; }
