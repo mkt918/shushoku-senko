@@ -21,7 +21,7 @@ const OC = {
 };
 
 const Outcomes = {
-  jobKindFromMethod(m) { return m === '自己開拓' || m === '縁故' ? '斡旋外' : m === '公務員' ? '公務' : '学校斡旋'; },
+  jobKindFromMethod(m) { return m === '自己開拓' || m === '縁故' || m === '家事手伝い' ? '斡旋外' : m === '公務員' ? '公務' : '学校斡旋'; },
 
   /** 生徒の進路先（入力した内容＋内定からの自動）。status：決定／活動中 */
   of(s) {

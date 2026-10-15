@@ -120,7 +120,7 @@ const StudentsPage = {
       { k: 'no2', label: '2年のときの番号', narrow: true, help: '4桁の数字' },
       { sec: '② 進路希望', cols: 2 },
       { k: 'course', label: '進路', type: 'select', options: ['', '就職', '進学', 'その他'], narrow: true },
-      { k: 'method', label: '受験方法', list: ['学校斡旋', '縁故', '公務員', '自営'], help: '「学校斡旋」または空欄で就職なら選考の対象' },
+      { k: 'method', label: '受験方法', list: ['学校斡旋', '自己開拓', '縁故', '公務員', '自営', '家事手伝い'], help: '「学校斡旋」または空欄で就職なら選考の対象' },
       { k: 'hope', label: '第1希望' },
       { k: 'hopeJob', label: '希望職種' },
       { type: 'derived', k: 'survey', label: '' },
