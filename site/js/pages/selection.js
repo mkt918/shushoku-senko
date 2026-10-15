@@ -347,8 +347,8 @@ const Selection = {
     const cell = (a, j, r) => {
       if (!a) return '';
       const nom = this.nominatedBy(stats, r, a.jobId);
-      return `<div class="${a.confirmed ? 'p-conf' : ''}">${a.confirmed ? '◎ ' : ''}${esc(j ? (Derive.short(j) ? Derive.short(j) + ' ' : '') + j.company : '')}<br>`
-        + `<span class="sm">${esc(j ? j.jobTitle || '' : '')}${j ? `　求人${Jobs.capacity(j)}人` : ''}</span>`
+      return `<div class="${a.confirmed ? 'p-conf' : ''}"><span class="${nom.length ? 'p-strike' : ''}">${a.confirmed ? '◎ ' : ''}${esc(j ? (Derive.short(j) ? Derive.short(j) + ' ' : '') + j.company : '')}<br>`
+        + `<span class="sm">${esc(j ? j.jobTitle || '' : '')}${j ? `　求人${Jobs.capacity(j)}人` : ''}</span></span>`
         + nom.map(n => `<br><span class="sm p-nom">${esc(n)}</span>`).join('') + `</div>`;
     };
     Print.open({
