@@ -341,7 +341,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 10px; }
 
 /* 選考会議の表 */
 .tbl-sel td, .tbl-sel th { vertical-align: top; }
-.tbl-sel td.slot { min-width: 150px; padding: 5px 6px; }
+.tbl-sel td.slot { min-width: 0; padding: 5px 6px; overflow-wrap: anywhere; }
 .slot-in { display: flex; align-items: center; gap: 2px; }
 .slot-no { width: 64px; font-family: var(--mono); padding: 4px 6px; }
 .slot-pick { width: 24px; height: 26px; font-size: 14px; }
@@ -460,7 +460,6 @@ td.slot.is-taken.is-over, td.slot.is-over { background: var(--danger-soft); }
 .slot-who .who-lab { color: var(--ink-3); margin-right: 4px; }
 .slot-who .who-taken { display: block; color: var(--danger); }
 .slot-who .who-tie { display: block; color: var(--warn); }
-.tbl-sel td.slot { min-width: 190px; }
 button.slot-cnt { font-size: 11px; color: var(--ink-3); text-decoration: none; display: block; margin-top: 2px; }
 button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 
@@ -623,5 +622,24 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .sel-g-m { color: #1f5f8b; }
 .sel-g-f { color: #b0386a; }
 .p-strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }
-.tbl-sel th:nth-child(2), .tbl-sel td:nth-child(2) { min-width: 190px; }
+
+/* 選考会議の表：ウィンドウの幅に合わせて広がる（狭いときだけ横にスクロール） */
+.tbl-sel { width: 100%; min-width: 1250px; table-layout: fixed; }
+.tbl-sel th.c-rank { width: 56px; }
+.tbl-sel th.c-name { width: 170px; }
+.tbl-sel th.c-gender { width: 52px; }
+.tbl-sel th.c-final, .tbl-sel th.c-life, .tbl-sel th.c-special, .tbl-sel th.c-mogi { width: 58px; }
 .tbl-sel td:nth-child(2) .stu-link { white-space: nowrap; }
+.tbl-sel th.sortable { cursor: pointer; user-select: none; }
+.tbl-sel .slot-name, .tbl-sel .slot-who { overflow-wrap: anywhere; }
+/* 表示する項目 */
+.sel-opts { position: relative; }
+.sel-opts summary { cursor: pointer; padding: 5px 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font-size: 13px; list-style: none; }
+.sel-opts summary::-webkit-details-marker { display: none; }
+.sel-opts[open] summary { background: var(--accent-soft); border-color: var(--accent); }
+.sel-opts-body { position: absolute; z-index: 5; left: 0; top: calc(100% + 4px); min-width: 280px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .15); padding: 10px 14px; display: grid; gap: 10px; }
+.sel-opts-body b { display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 3px; }
+.sel-opts-body .check { display: flex; padding: 2px 0; }
+.sel-opts-body input { width: auto; }
+.tbl-sel.h-gender .c-gender, .tbl-sel.h-final .c-final, .tbl-sel.h-life .c-life, .tbl-sel.h-special .c-special, .tbl-sel.h-mogi .c-mogi { display: none; }
+.tbl-sel.h-job .slot-job, .tbl-sel.h-warn .slot-warn, .tbl-sel.h-whos .slot-whos, .tbl-sel.h-count .slot-cnt { display: none; }
