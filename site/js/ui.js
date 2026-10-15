@@ -20,6 +20,7 @@ const UI = {
 
   route() {
     const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1] || 'dashboard';
+    if (typeof Survey !== 'undefined') Survey.syncEmpty();   // 進路希望調査の回答を、生徒・成績の空欄に反映
     const page = Pages.get(id) || Pages.get('dashboard');
     this.current = page;
     $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.page === page.id));

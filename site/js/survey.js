@@ -240,6 +240,17 @@ const Survey = {
   latest() {
     return [...(Store.data.surveys || [])].sort((a, b) => String(a.date || a.label || '').localeCompare(String(b.date || b.label || ''))).pop() || null;
   },
+  /** 最新の調査の回答を、生徒・成績の「空欄」に入れる（入力済みの欄は変えない）。画面を開くたびに呼ぶ */
+  syncEmpty() {
+    const sv = this.latest(); if (!sv || !Store.data) return 0;
+    let n = 0;
+    for (const p of this.people(sv).filter(x => x.answered)) {
+      const s = Students.byNo(p.no3); if (!s) continue;
+      for (const [k, v] of Object.entries(this.patch(p))) if (!String(s[k] || '').trim()) { s[k] = v; n++; }
+    }
+    if (n) Store.changed();
+    return n;
+  },
   applyToStudents(survey) {
     let added = 0, updated = 0;
     for (const x of this.plan(survey)) {
