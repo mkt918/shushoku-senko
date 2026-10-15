@@ -311,7 +311,8 @@ const SendDocs = {
     return f === 'changed' ? d.changed : f === 'unchecked' ? !job.sendChecked : f === 'noaddr' ? !d.address : true;
   },
   groups() {
-    return Docs.jobGroups(a => a.confirmed && (this.state.showSent || !a.docsSent)).filter(g => this.match(g.job, this.state.f));
+    const min = this.state.minRound || 1;     // 2次応募の画面では 2（2次以降の応募先だけ）
+    return Docs.jobGroups(a => a.confirmed && a.round >= min && (this.state.showSent || !a.docsSent)).filter(g => this.match(g.job, this.state.f));
   },
   /** 郵便番号を 000-0000 の形にそろえる */
   zip(v) {
@@ -329,7 +330,7 @@ const SendDocs = {
         <label class="check sub"><input type="checkbox" id="sdShowSent" ${st.showSent ? 'checked' : ''}> 送付済みも表示</label></div>
       <p class="sub">確定した応募先を求人ごとにまとめています。送付状と宛名ラベル（送付先の変更は求人票の内容が使われます）を印刷し、発送したら「送付済みにする」を押します。</p>
       ${Docs.principalMissing() ? '<div class="notice notice-warn">校長名・進路指導主事名が未入力です。「設定」で入力してください（送付状・依頼文に入ります）。</div>' : ''}
-      <div class="toolbar"><span class="sub">送付先の確認・修正</span><div class="seg">${[['', 'すべて'], ['changed', '事業所と違う送付先'], ['unchecked', '未確認'], ['noaddr', '住所が空']].map(([v, l]) => `<button class="${st.f === v ? 'on' : ''}" data-sf-filter="${v}">${l}${v ? ' ' + Docs.jobGroups(a => a.confirmed && (st.showSent || !a.docsSent)).filter(g => this.match(g.job, v)).length : ''}</button>`).join('')}</div></div>
+      <div class="toolbar"><span class="sub">送付先の確認・修正</span><div class="seg">${[['', 'すべて'], ['changed', '事業所と違う送付先'], ['unchecked', '未確認'], ['noaddr', '住所が空']].map(([v, l]) => `<button class="${st.f === v ? 'on' : ''}" data-sf-filter="${v}">${l}${v ? ' ' + Docs.jobGroups(a => a.confirmed && a.round >= (st.minRound || 1) && (st.showSent || !a.docsSent)).filter(g => this.match(g.job, v)).length : ''}</button>`).join('')}</div></div>
       <p class="help">送付先は、空欄なら事業所の住所・部署・担当者を使います。変えたい項目だけ入力してください（直すと「確認」に自動でチェックが入ります）。</p>
       ${groups.length ? `<div class="table-wrap"><table class="tbl" id="sdTable">
         <thead><tr><th><input type="checkbox" id="sdAll" ${groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th><th class="num">下4桁</th><th>事業所（事業所の所在地）</th><th>応募者</th><th>送付先〒</th><th>送付先の住所</th><th>部署</th><th>担当者</th><th title="送付先を確認したらチェック">確認</th><th></th></tr></thead>

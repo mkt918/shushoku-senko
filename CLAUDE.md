@@ -93,6 +93,13 @@
 - **本当の防御ではない**（ソースを読める人は回避できる。生徒のデータも暗号化されない）。「うっかり開かれない」ための鍵。本気で守るなら、保存する JSON をパスワードで暗号化する機能（WebCrypto の AES-GCM）を足す。ユーザーにもそう説明済み。
 - `app.js` の処理は `main()` にまとめてあり、`Auth.gate(main)` で始める。パスワードを通るまで、画面（ナビ・データ）は作られない。
 
+## 保存ファイルの暗号化（2026-10-16）
+
+- 設定の「データの暗号化」でパスワードを決めると、保存する JSON と一時保存（localStorage）を暗号化する。`core.js` の `Crypt`（PBKDF2-SHA256 20万回→AES-GCM 256）。鍵は `Store.crypt`（メモリだけ。パスワードは持たない）。
+- ファイル：`{ app, enc, iter, salt, iv, data }`（`Crypt.isEnc`）。開くときは `Store._loadText` がパスワードを聞く。書くときは `Store._payload()`。
+- 一時保存も暗号化され、起動時は `app.js` がパスワードを聞いて復元する（キャンセルすると空で始まり、何か入力すると上書きされる）。
+- **パスワードを忘れると開けない。** WebCrypto が使えない環境（`Crypt.ok()` が偽）では設定に出ない。
+
 ## 帳票のレイアウト（設定で直せる）
 
 - 依頼文（`visitLetter`）・確認書（`visitConfirm`）・送付状（`cover`）・宛名ラベル（`label`）は、**コードに文面を書かず、設定（`settings.docLayout[key]`）から組み立てる**。`null` のあいだは `defaultDocLayout()`（core.js）の既定を使う。

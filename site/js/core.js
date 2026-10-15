@@ -388,6 +388,36 @@ function deptOf(no, settings) {
 }
 
 /* ============================================================
+   保存ファイルの暗号化（WebCrypto：PBKDF2-SHA256 で鍵を作り、AES-GCM で暗号化）
+   - パスワードはメモリにだけ持つ（保存しない）。忘れると開けない
+   ============================================================ */
+const Crypt = {
+  ITER: 200000,
+  ok() { return !!(window.crypto && crypto.subtle && window.isSecureContext !== false); },
+  b64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); },
+  unb64(s) { const b = atob(s); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; },
+  /** パスワードと塩から鍵を作る（1回 0.1〜0.3 秒。セッション中は作った鍵を使い回す） */
+  async setup(pass, saltB64, iter = this.ITER) {
+    const salt = saltB64 ? this.unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    return { key, salt: this.b64(salt), iter };
+  },
+  async encrypt(obj, c) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, c.key, new TextEncoder().encode(JSON.stringify(obj))));
+    return { app: 'shushoku-senko', enc: 'AES-GCM/PBKDF2-SHA256', iter: c.iter, salt: c.salt, iv: this.b64(iv), data: this.b64(ct) };
+  },
+  /** 暗号化したものを開く。パスワードが違うと例外 */
+  async open(w, pass) {
+    const c = await this.setup(pass, w.salt, w.iter || this.ITER);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.unb64(w.iv) }, c.key, this.unb64(w.data));
+    return { data: JSON.parse(new TextDecoder().decode(pt)), c };
+  },
+  isEnc(o) { return !!(o && o.app === 'shushoku-senko' && o.enc && o.data && o.iv && o.salt); },
+};
+
+/* ============================================================
    データ保存（メモリ ⇄ ブラウザ一時保存 ⇄ JSONファイル）
    ============================================================ */
 const Store = {
@@ -395,6 +425,7 @@ const Store = {
   fileHandle: null,
   fileName: '',
   dirty: false,       // ファイルに未保存の変更がある
+  crypt: null,        // 暗号化して保存するときの鍵（{ key, salt, iter }）。null＝暗号化しない
   listeners: [],
   _timer: null,
 
@@ -403,6 +434,10 @@ const Store = {
 
   init() {
     const saved = this._readAutosave();
+    if (saved && saved.enc) {           // 暗号化した一時保存は、パスワードを聞いてから復元する（app.js）
+      this.data = blankData();
+      return { restored: false, encrypted: saved };
+    }
     if (saved) {
       try {
         this.data = normalizeData(saved.data);
@@ -429,10 +464,17 @@ const Store = {
     catch (e) { return null; }
   },
   _writeAutosave() {
+    const meta = { savedAt: new Date().toISOString(), fileName: this.fileName, dirty: this.dirty };
+    if (this.crypt) {                   // 暗号化の設定があるときは、一時保存も暗号化する
+      const c = this.crypt;
+      Crypt.encrypt(this.data, c).then(w => {
+        try { if (this.crypt === c) localStorage.setItem(APP.storageKey, JSON.stringify(Object.assign(meta, { enc: w }))); }
+        catch (e) { console.warn('一時保存に失敗', e); }
+      });
+      return;
+    }
     try {
-      localStorage.setItem(APP.storageKey, JSON.stringify({
-        savedAt: new Date().toISOString(), fileName: this.fileName, dirty: this.dirty, data: this.data,
-      }));
+      localStorage.setItem(APP.storageKey, JSON.stringify(Object.assign(meta, { data: this.data })));
     } catch (e) {
       console.warn('一時保存に失敗', e);
       UI && UI.toast('ブラウザへの一時保存に失敗しました。こまめにファイル保存してください。', 'warn');
@@ -457,8 +499,7 @@ const Store = {
       try {
         const [h] = await window.showOpenFilePicker({ types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
         const f = await h.getFile();
-        this.replace(JSON.parse(await f.text()), f.name, h);
-        return true;
+        return await this._loadText(await f.text(), f.name, h);
       } catch (e) {
         if (e.name === 'AbortError') return false;
         if (e instanceof SyntaxError) throw new Error('ファイルの形式が正しくありません。');
@@ -473,20 +514,44 @@ const Store = {
       inp.onchange = async () => {
         const f = inp.files[0];
         if (!f) return resolve(false);
-        try { this.replace(JSON.parse(await f.text()), f.name, null); resolve(true); }
-        catch (e) { reject(e instanceof SyntaxError ? new Error('ファイルの形式が正しくありません。') : e); }
+        try { resolve(await this._loadText(await f.text(), f.name, null)); }
+        catch (e) { reject(e); }
       };
       inp.click();
     });
   },
 
   _json() { return JSON.stringify(this.data, null, 1); },
+  /** ファイルに書く中身（暗号化の設定があれば暗号化する） */
+  async _payload() { return this.crypt ? JSON.stringify(await Crypt.encrypt(this.data, this.crypt)) : this._json(); },
+  /** 開いたファイルの中身を読み込む。暗号化されていればパスワードを聞く。取り消したら false */
+  async _loadText(text, name, handle) {
+    let obj;
+    try { obj = JSON.parse(text); } catch (e) { throw new Error('ファイルの形式が正しくありません。'); }
+    if (Crypt.isEnc(obj)) {
+      if (!Crypt.ok()) throw new Error('このブラウザでは、暗号化したファイルを開けません（Edge／Chrome の新しい版を使ってください）。');
+      for (;;) {
+        const pass = await UI.askPassword({ title: 'パスワード', message: `「${name}」は暗号化されています。保存したときのパスワードを入れてください。` });
+        if (pass == null) return false;
+        try {
+          const r = await Crypt.open(obj, pass);
+          this.crypt = r.c;                // 先に鍵を持たせてから入れ替える（一時保存も暗号化される）
+          this.replace(r.data, name, handle);
+          return true;
+        } catch (e) { UI.toast('パスワードが違います', 'warn'); }
+      }
+    }
+    this.crypt = null;
+    this.replace(obj, name, handle);
+    return true;
+  },
 
   async save() {
     if (this.fileHandle) {
       try {
+        const body = await this._payload();
         const w = await this.fileHandle.createWritable();
-        await w.write(this._json());
+        await w.write(body);
         await w.close();
         this._saved();
         return true;
@@ -503,8 +568,9 @@ const Store = {
     if (window.showSaveFilePicker) {
       try {
         const h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
+        const body = await this._payload();
         const w = await h.createWritable();
-        await w.write(this._json());
+        await w.write(body);
         await w.close();
         this.fileHandle = h;
         this.fileName = h.name;
@@ -516,7 +582,7 @@ const Store = {
       }
     }
     // フォールバック：ダウンロード
-    downloadBlob(new Blob([this._json()], { type: 'application/json' }), name);
+    downloadBlob(new Blob([await this._payload()], { type: 'application/json' }), name);
     this.fileName = name;
     this._saved();
     return true;

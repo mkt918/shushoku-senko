@@ -37,14 +37,14 @@ const AppsPage = {
       </div>
       <div id="apStats">${this.statsHtml()}</div>
 
-      ${all.length ? SendDocs.html() : ''}
+      ${all.length ? (SendDocs.state.minRound = 1, SendDocs.html()) : ''}
       <div class="toolbar">
         <div class="seg">${[['', 'すべて'], ['未', '結果待ち'], ['内定', '〇 内定'], ['不採用', '× 不採用'], ['辞退', '辞退']]
           .map(([v, l]) => `<button class="${this.state.filter === v ? 'on' : ''}" data-filter="${v}">${l}</button>`).join('')}</div>
         <select id="apSort"><option value="no3">番号順</option><option value="exam" ${this.state.sort === 'exam' ? 'selected' : ''}>試験日順</option></select>
       </div>
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="apTable">
-        <thead><tr><th class="num">番号</th><th>氏名</th><th>次</th><th>応募先</th><th>書類送付</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>報告書（3日以内）</th><th>メモ</th></tr></thead>
+        <thead><tr><th class="num">番号</th><th>氏名</th><th>何次</th><th>応募先</th><th>書類送付</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>報告書（3日以内）</th><th>メモ</th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
         : '<div class="empty"><p class="empty-title">該当する応募はありません</p><p>「選考会議」で応募先を確定すると、ここに並びます。</p></div>'}
 

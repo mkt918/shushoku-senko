@@ -667,3 +667,30 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px 14px; max-height: 40vh; overflow-y: auto; }
 .map-row { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 6px; font-size: 12.5px; }
 .map-row select { width: 100%; font-size: 12.5px; padding: 2px 4px; }
+
+/* 改善：変更ロック */
+.slot-no.is-locked { background: var(--surface-2); color: var(--ink-2); cursor: not-allowed; }
+.slot-lock { width: 24px; height: 26px; font-size: 13px; }
+.slot-lock:hover { background: var(--warn-soft); }
+/* 選考会議：決まりの折りたたみ */
+details.rules { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+details.rules summary { cursor: pointer; color: var(--accent); }
+details.rules ul { margin: 6px 0 0; }
+/* 取り込み：事前チェック */
+.imp-diff { margin-top: 8px; }
+.imp-diff summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--warn); }
+.imp-diff .table-wrap { max-height: 30vh; overflow: auto; margin-top: 6px; }
+/* 取り消しボタンつきの通知 */
+.toast-action { display: flex; align-items: center; gap: 12px; }
+.toast-action .btn { background: #fff; color: var(--ink); border-color: #fff; }
+/* 設定：目次 */
+.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 14px; font-size: 13px; position: sticky; top: 0; z-index: 3; background: var(--bg, #f6f7f9); padding: 6px 0; }
+.toc a { color: var(--accent); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+/* 2次応募：送付カードの折りたたみ */
+details.card-fold { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 8px 12px; }
+details.card-fold > summary { cursor: pointer; font-weight: 700; color: var(--accent); }
+details.card-fold > .card { border: 0; box-shadow: none; padding: 8px 0 0; margin: 0; }
+/* 長い表は、見出しを画面の上に残す */
+.table-wrap:has(> #selTable), .table-wrap:has(> #apTable), .table-wrap:has(> #scTable) { max-height: calc(100vh - 120px); overflow: auto; }
+#selTable thead th, #apTable thead th, #scTable thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); }

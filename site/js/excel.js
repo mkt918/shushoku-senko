@@ -116,6 +116,24 @@ const COL_LABELS = {
   occ3: '職業分類（3桁）', open1: '求人数（通勤）', open2: '求人数（住込）', open3: '求人数（不問）', visitOk: '職場見学の受け入れ', visitInfo: '職場見学の日程',
 };
 
+/** 求人票の取り込みで、既にある求人のどの項目が変わるか（事前チェック用） */
+function jobsDiff(items, byJobNumber, skipBlank = true) {
+  const changes = [];
+  let created = 0;
+  const seen = new Set();
+  for (const it of items) {
+    const hit = jobMatch(it, byJobNumber);
+    if (!hit || seen.has(hit.id)) { if (!hit) created++; continue; }
+    seen.add(hit.id);
+    for (const [k, v] of Object.entries(it)) {
+      if (skipBlank && (v === '' || v == null)) continue;
+      const old = hit[k] == null ? '' : String(hit[k]);
+      if (old !== String(v)) changes.push({ job: hit, k, from: old, to: String(v) });
+    }
+  }
+  return { changes, created };
+}
+
 const NO3_PATTERNS = [/^3年.*番号/, /^(番号|学籍|学籍番号|CLNO|生徒番号|出席番号)$/i];
 
 /** 取り込む求人が、登録済みのどれにあたるか。byJobNumber＝求人番号を最優先にする（Handy） */
@@ -642,6 +660,34 @@ const Importer = {
       <div id="impPreview" class="imp-preview"></div>`;
     let parsed = null;
     Importer.colOverride = {};
+    /** 事前チェック：上書きされる項目の一覧 */
+    const diffHtml = (type, items) => {
+      const T = ImportTypes[type];
+      if (T.target === 'jobs') {
+        const { changes } = jobsDiff(items, type === 'handy');
+        if (!changes.length) return '<p class="help">既にある求人票で、値が変わる項目はありません。</p>';
+        const byField = {};
+        changes.forEach(c => { byField[c.k] = (byField[c.k] || 0) + 1; });
+        return `<details class="imp-diff"><summary>既にある求人票で値が変わる項目：${changes.length} か所（${Object.entries(byField).map(([k, n]) => esc(COL_LABELS[k] || k) + ' ' + n).join('、')}）</summary>
+          <div class="table-wrap"><table class="tbl tbl-compact"><thead><tr><th>事業所</th><th>項目</th><th>今の値</th><th>取り込み後</th></tr></thead><tbody>
+          ${changes.slice(0, 300).map(c => `<tr><td>${esc(c.job.company)}</td><td>${esc(COL_LABELS[c.k] || c.k)}</td><td class="sub">${esc(c.from) || '（空）'}</td><td><b>${esc(c.to)}</b></td></tr>`).join('')}
+          </tbody></table></div>${changes.length > 300 ? '<p class="help">先頭の300か所だけ表示しています。</p>' : ''}</details>`;
+      }
+      if (type === 'selection') {
+        let chg = 0, lost = 0;
+        for (const it of items) {
+          const s = Students.byNo(it.no3); if (!s) continue;
+          const prefs = Apps.prefs(s.id);
+          for (const sl of it.slots) {
+            if (sl.special) continue;
+            const cur = prefs[sl.pref]; const job = matchSelectionJob(sl);
+            if (cur && (!job || cur.jobId !== job.id)) { chg++; if (Apps.hasRecord(Object.assign({}, cur, { confirmed: false }))) lost++; }
+          }
+        }
+        return chg ? `<div class="notice notice-warn">今と違う希望が ${chg} 件あり、上書きします。${lost ? `<b>そのうち ${lost} 件は職場見学・応募・合否などの記録があり、記録は消えます。</b>` : ''}（取り込んだあと「取り消す」で戻せます）</div>` : '';
+      }
+      return '';
+    };
     let mapOpen = false;
     /** 列の対応（求人票の取り込みだけ）：自動で見つけた列を表示し、違えば選び直せる */
     const mapHtml = (rows, T) => {
@@ -671,6 +717,7 @@ const Importer = {
           <div class="notice notice-info"><b>${parsed.items.length}</b> 件を読み取りました
           （${isJobs ? '新規' : '新しい生徒'} ${newCount} ${isJobs ? '件' : '人'}／既存の更新 ${parsed.items.length - newCount} ${isJobs ? '件' : '人'}）。
           ${parsed.info ? `<br><span class="sub">${esc(parsed.info)}</span>` : ''}</div>
+          ${diffHtml(type, parsed.items)}
           ${parsed.skipped.length ? `<div class="notice notice-warn">読み飛ばし ${parsed.skipped.length} 行：${parsed.skipped.slice(0, 8).map(x => `${x.row}行目（${esc(x.reason)}）`).join('、')}${parsed.skipped.length > 8 ? ' …' : ''}</div>` : ''}`;
       } catch (e) {
         parsed = null;
@@ -708,12 +755,18 @@ const Importer = {
     if (res !== 'ok') { Importer.colOverride = null; return false; }
     const type = $('#impType', body).value;
     Jobs._batch = { impId: uid(), impAt: new Date().toLocaleString('sv-SE').slice(0, 16), impName: (file && file.name) || '' };   // 求人票の取り込みごとの目印（一括削除用）
+    // 取り込む前の状態を残す（取り込んだあと「取り消す」で戻せる）
+    const snap = clone({ jobs: Store.data.jobs, students: Store.data.students, applications: Store.data.applications, imports: Store.data.imports });
     const r = ImportTypes[type].apply(parsed.items);
     Jobs._batch = null;
     Importer.colOverride = null;
     if (file && typeof Watch !== 'undefined') Watch.mark(file, type);
     Store.changed();
-    UI.toast(`取り込みました（追加 ${r.added} 件／更新 ${r.updated} 件）`);
+    UI.toastAction(`取り込みました（追加 ${r.added} 件／更新 ${r.updated} 件）`, '取り消す', () => {
+      Object.assign(Store.data, snap);
+      Store.changed(); UI.refresh();
+      UI.toast('取り込みを取り消しました');
+    });
     UI.refresh();
     return true;
   },

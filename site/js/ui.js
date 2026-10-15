@@ -106,6 +106,39 @@ const UI = {
     });
   },
 
+  /** パスワードを聞く。twice＝確認のためにもう一度入れる。取り消したら null */
+  async askPassword({ title = 'パスワード', message = '', twice = false, ok = 'OK' } = {}) {
+    const body = document.createElement('div');
+    body.innerHTML = `${message ? `<p class="confirm-msg">${esc(message).replace(/\n/g, '<br>')}</p>` : ''}
+      <div class="field" style="margin-top:10px"><label class="label" for="pw1">パスワード</label><input type="password" id="pw1" autocomplete="off"></div>
+      ${twice ? '<div class="field" style="margin-top:8px"><label class="label" for="pw2">もう一度</label><input type="password" id="pw2" autocomplete="off"></div>' : ''}`;
+    let value = null;
+    const res = await this.modal({
+      title, body,
+      buttons: [{ label: 'キャンセル', value: null }, {
+        label: ok, kind: 'primary', value: 'ok', onClick: root => {
+          const a = $('#pw1', root).value;
+          if (a.length < 4) { UI.toast('パスワードは4文字以上にしてください', 'warn'); return false; }
+          if (twice && a !== $('#pw2', root).value) { UI.toast('2つのパスワードが違います', 'warn'); return false; }
+          value = a;
+        },
+      }],
+      onOpen: root => root.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); root.closest('.modal').querySelector('.btn-primary').click(); } }),
+    });
+    return res === 'ok' ? value : null;
+  },
+
+  /** 「取り消す」ボタンつきの通知（ms ミリ秒で消える） */
+  toastAction(msg, label, fn, ms = 30000) {
+    const t = document.createElement('div');
+    t.className = 'toast toast-action';
+    t.innerHTML = `<span>${esc(msg)}</span><button class="btn btn-sm">${esc(label)}</button>`;
+    $('#toast').appendChild(t);
+    const done = () => { t.classList.add('out'); setTimeout(() => t.remove(), 400); };
+    t.querySelector('button').addEventListener('click', () => { done(); fn(); });
+    setTimeout(done, ms);
+  },
+
   async confirm(message, { title = '確認', ok = 'OK', danger = false } = {}) {
     return await this.modal({
       title, body: `<p class="confirm-msg">${esc(message).replace(/\n/g, '<br>')}</p>`,

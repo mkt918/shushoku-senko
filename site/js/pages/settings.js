@@ -23,6 +23,7 @@ const Settings = {
     view.innerHTML = `
       <div class="page-head"><div><h1>設定</h1>
       <p class="lead">帳票に入る学校情報や、学科の判定・校内選考規定の値をここで管理します。変更はすぐに反映されます。</p></div></div>
+      <nav class="toc" id="setToc"></nav>
 
       <section class="card">
         <h2>年度</h2>
@@ -128,6 +129,14 @@ const Settings = {
       </section>
 
       <section class="card">
+        <h2>データの暗号化（保存ファイルにパスワード）</h2>
+        ${Crypt.ok() ? `<p>今の状態：<b>${Store.crypt ? '暗号化して保存します' : '暗号化していません'}</b></p>
+        <p class="help">暗号化すると、保存した JSON ファイルとこのブラウザの一時保存が、パスワードなしでは読めなくなります（AES-GCM）。USB の紛失などに備えられます。<b>パスワードを忘れると、ファイルは二度と開けません。</b>紙に書いて、決められた場所に保管してください。設定したら「上書き保存」をすると、ファイルが暗号化されます。</p>
+        <div class="btn-row">${Store.crypt ? '<button class="btn" id="encChange">パスワードを変える</button><button class="btn btn-danger-ghost" id="encOff">暗号化をやめる</button>' : '<button class="btn btn-primary" id="encOn">パスワードを決めて暗号化する</button>'}</div>`
+          : '<p class="help">このブラウザ（または開き方）では暗号化を使えません。Edge／Chrome の新しい版で開いてください。</p>'}
+      </section>
+
+      <section class="card">
         <h2>データ管理</h2>
         <div class="btn-row">
           <button class="btn" id="dataNew">新しい空のデータを作る</button>
@@ -174,6 +183,26 @@ const Settings = {
       UI.refresh();
     }));
     $('#yearNext', view).addEventListener('click', () => this.nextYear());
+    // 目次（長い画面なので、見出しへ飛べるようにする）
+    const hs = $$('section.card > h2', view);
+    hs.forEach((h, i) => { h.id = 'set-' + i; });
+    $('#setToc', view).innerHTML = hs.map((h, i) => `<a href="#" data-to="set-${i}">${esc(h.textContent)}</a>`).join('');
+    $('#setToc', view).addEventListener('click', e => { const a = e.target.closest('[data-to]'); if (!a) return; e.preventDefault(); document.getElementById(a.dataset.to).scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    // 暗号化
+    const encSet = async (title) => {
+      const pass = await UI.askPassword({ title, twice: true, ok: '決める', message: 'パスワードを決めてください（4文字以上）。忘れるとファイルを開けなくなります。' });
+      if (pass == null) return;
+      Store.crypt = await Crypt.setup(pass);
+      Store.changed();
+      UI.refresh();
+      UI.toast('暗号化の設定をしました。「上書き保存」で、ファイルが暗号化されます');
+    };
+    if ($('#encOn', view)) $('#encOn', view).addEventListener('click', () => encSet('暗号化する'));
+    if ($('#encChange', view)) $('#encChange', view).addEventListener('click', () => encSet('パスワードを変える'));
+    if ($('#encOff', view)) $('#encOff', view).addEventListener('click', async () => {
+      if (!await UI.confirm('暗号化をやめます。次に保存すると、ファイルは暗号化されずに保存されます。', { ok: 'やめる', danger: true })) return;
+      Store.crypt = null; Store.changed(); UI.refresh();
+    });
     $('#dataNew', view).addEventListener('click', async () => {
       if (!await UI.confirm('空のデータで始めます。\n今のデータを保存していない場合は、先に「名前を付けて保存」をしてください。', { ok: '空のデータにする', danger: true })) return;
       Store.newFile(currentNendo());
@@ -183,6 +212,7 @@ const Settings = {
     $('#clearCache', view).addEventListener('click', async () => {
       if (!await UI.confirm('このブラウザに残っている一時保存を消します。\n（保存済みのファイルは消えません）\n共用PCで作業を終えるときに使ってください。', { ok: '消す', danger: true })) return;
       localStorage.removeItem(APP.storageKey);
+      Store.crypt = null;
       Store.data = blankData();
       Store.fileName = '';
       Store.fileHandle = null;

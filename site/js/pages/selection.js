@@ -6,7 +6,8 @@
 const PREF_N = 5;
 
 const Selection = {
-  state: { show: 'all', sort: 'rank', dir: 'asc' },   // show: all／open（未確定のみ）。sort: 並べ替えの列（既定は就職順位の昇順）
+  state: { show: 'all', sort: 'rank', dir: 'asc' },
+  unlocked: new Set(),      // 🔒を外した（番号を変えてよい）確定済みの希望   // show: all／open（未確定のみ）。sort: 並べ替えの列（既定は就職順位の昇順）
 
   /** 表示する項目（この端末のブラウザに覚える。データには入らない） */
   VIEW_ITEMS: [
@@ -81,7 +82,13 @@ const Selection = {
     view.innerHTML = `
       <div class="page-head">
         <div><h1>選考会議（1次）</h1>
-        <p class="lead">就職順位の順に、第1〜第5希望を<b>求人票の下4桁</b>で入力します（「…」で検索して選ぶこともできます）。確定する希望の<b>チェック（☑）</b>を入れてください（もう一度押すと外れます）。基本は<b>1人1社・求人1枚に1人</b>です。上位の人が確定した求人（確定がまだの人は、その人の第1希望）は、下位の欄が<b>灰色＋取り消し線</b>になり、誰が希望しているかを表示します（選ぶことはできます。募集が複数人の求人は、求人数を直してください）。</p></div>
+        <p class="lead">就職順位の順に、第1〜第5希望を<b>求人票の下4桁</b>で入れ、確定する希望に<b>☑</b>を入れます。</p>
+        <details class="rules"><summary>決まりと表示の見方</summary><ul class="plain">
+          <li>基本は<b>1人1社・求人1枚に1人</b>（求人票の「求人数」が2以上なら、その人数）。</li>
+          <li>上位の人が確定した求人（確定がまだの人は、その人の第1希望）は、下位の欄が<b>灰色＋取り消し線</b>になります。選ぶことはできます。</li>
+          <li>確定した希望は<b>🔒</b>で番号を守ります。変えるときは🔒を押してから直します（職場見学・合否などの記録があれば、確認が出ます）。</li>
+          <li>番号は「…」で検索して選ぶこともできます。氏名を押すと、その生徒の情報を開けます。</li>
+        </ul></details></div>
         <div class="head-actions">
           <button class="btn" id="selImport">Excel から取り込む</button>
           <button class="btn" id="selAuto" ${seekers.length ? '' : 'disabled'}>上位から確定案を作る</button>
@@ -156,6 +163,7 @@ const Selection = {
       const a = prefs[p];
       const job = a ? Jobs.byId(a.jobId) : null;
       const x = a ? stats.get(a.jobId) : null;
+      const locked = !!(a && a.confirmed && !this.unlocked.has(a.id));   // 確定済みは、🔒を外すまで番号を変えられない
       // 自分より上位で確定している人数／同順位で確定している人数
       const others = x ? x.entries.filter(e => e.s.id !== s.id) : [];
       const ahead = others.filter(e => e.a.confirmed && e.rank < myRank).length;
@@ -167,8 +175,9 @@ const Selection = {
       const who = others.map(e => `<span class="who ${e.a.confirmed ? 'who-conf' : ''}" title="${e.a.confirmed ? '確定' : '希望'}（第${e.a.pref}希望）">${e.rank === Infinity ? '–' : e.rank}位 ${esc(e.s.name || e.s.no3)}${e.a.confirmed ? '◎' : ''}</span>`).join('');
       return `<td class="slot ${a && a.confirmed ? 'is-conf' : ''} ${taken ? 'is-taken' : ''} ${over ? 'is-over' : ''}">
         <div class="slot-in">
-          <input class="slot-no" data-sid="${s.id}" data-pref="${p}" value="${esc(job ? Derive.short(job) : '')}" placeholder="${esc(job && !Derive.short(job) ? job.kind : '')}" inputmode="numeric" aria-label="第${p}希望の下4桁">
-          <button class="icon-btn slot-pick" data-sid="${s.id}" data-pref="${p}" title="求人を検索して選ぶ" aria-label="検索">…</button>
+          <input class="slot-no ${locked ? 'is-locked' : ''}" data-sid="${s.id}" data-pref="${p}" value="${esc(job ? Derive.short(job) : '')}" placeholder="${esc(job && !Derive.short(job) ? job.kind : '')}" inputmode="numeric" aria-label="第${p}希望の下4桁" ${locked ? 'readonly title="確定済みのため変更できません（🔒を押すと変更できます）"' : ''}>
+          ${locked ? `<button class="icon-btn slot-lock" data-unlock="${a.id}" title="確定済み。押すと、番号を変更できるようになります" aria-label="変更できるようにする">🔒</button>`
+            : `<button class="icon-btn slot-pick" data-sid="${s.id}" data-pref="${p}" title="求人を検索して選ぶ" aria-label="検索">…</button>`}
           ${a ? `<label class="slot-conf" title="この希望で確定"><input type="checkbox" data-sid="${s.id}" data-pref="${p}" ${a.confirmed ? 'checked' : ''}></label>` : ''}
         </div>
         ${a ? `<div class="slot-name">${this.jobLabel(job)}</div>
@@ -220,8 +229,10 @@ const Selection = {
       if (pick) return this.pickJob(pick.dataset.sid, Number(pick.dataset.pref));
       const ej = e.target.closest('[data-editjob]');
       if (ej) { Jobs.edit(ej.dataset.editjob).then(() => this.redrawRows()); return; }
+      const ul = e.target.closest('[data-unlock]');
+      if (ul) { this.unlocked.add(ul.dataset.unlock); this.redrawRows(); UI.toast('この希望の番号を変更できるようにしました'); return; }
       const un = e.target.closest('[data-unconf]');
-      if (un) { Apps.of(un.dataset.unconf).forEach(a => { if (a.round === 1) a.confirmed = false; }); Store.changed(); this.redrawRows(); }
+      if (un) { this.confirm(un.dataset.unconf, 0, false); }
     });
   },
 
@@ -281,7 +292,13 @@ const Selection = {
   },
 
   /** 確定のチェック。入れると、その生徒はこの希望だけが確定（1人1社）。外すと確定なしに戻る */
-  confirm(studentId, pref, on = true) {
+  async confirm(studentId, pref, on = true) {
+    const cur = Apps.of(studentId).find(a => a.round === 1 && a.confirmed);
+    // 記録（見学・送付・合否など）がある確定を外す・別の希望に移すときは確認する（記録は残る）
+    if (cur && (!on || cur.pref !== pref) && Apps.hasRecord(Object.assign({}, cur, { confirmed: false }))) {
+      const ok = await UI.confirm(`第${cur.pref}希望の確定には、職場見学・応募・合否などの記録があります。\n確定を${on ? '別の希望に移す' : '外す'}と、この応募は応募先ではなくなります（記録は残ります）。`, { ok: on ? '移す' : '外す', danger: true });
+      if (!ok) { this.redrawRows(); return; }
+    }
     Apps.of(studentId).forEach(a => { if (a.round === 1) a.confirmed = on && a.pref === pref; });
     Store.changed();
     this.redrawRows();

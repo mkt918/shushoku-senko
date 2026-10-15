@@ -37,22 +37,23 @@ const SecondPage = {
         <div class="stat"><span class="stat-label">対象の生徒</span><span class="stat-val">${all.length}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">応募先が未定</span><span class="stat-val">${wait.length}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">結果待ち</span><span class="stat-val">${going.length}</span><span class="stat-unit">人</span></div>
-        <div class="stat"><span class="stat-label">内定</span><span class="stat-val">${won.length}</span><span class="stat-unit">人</span></div>
+        <div class="stat"><span class="stat-label">〇 内定</span><span class="stat-val">${won.length}</span><span class="stat-unit">人</span></div>
       </div>
       <div class="toolbar">
         <div class="seg">${[['', 'すべて'], ['未定', '応募先が未定'], ['待', '結果待ち'], ['内定', '内定']]
           .map(([v, l]) => `<button class="${f === v ? 'on' : ''}" data-filter="${v}">${l}</button>`).join('')}</div>
       </div>
-      ${Apps.currents().length ? SendDocs.html() : ''}
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="scTable">
-        <thead><tr><th class="num">就職順位</th><th class="num">番号</th><th>氏名</th><th>前の応募（合否を直せます）</th><th>次</th><th>応募先</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>メモ</th><th></th></tr></thead>
+        <thead><tr><th class="num">就職順位</th><th class="num">番号</th><th>氏名</th><th>前の応募（合否を直せます）</th><th>何次</th><th>応募先</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>メモ</th><th></th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
         : `<div class="empty"><p class="empty-title">${all.length ? '該当する生徒はいません' : '2次応募の対象者はまだいません'}</p><p>「応募・受験」で合否を「不採用」または「辞退」にすると、ここに並びます。</p></div>`}
+      ${Store.data.applications.some(a => a.confirmed && a.round >= 2) ? `<details class="card-fold" ${this.state.sendOpen ? 'open' : ''} id="scSend"><summary>応募書類の送付（2次以降の応募先の送付状・宛名ラベル）</summary>${(SendDocs.state.minRound = 2, SendDocs.html())}</details>` : ''}
 `;
     $$('[data-filter]', view).forEach(b => b.addEventListener('click', () => { this.state.filter = b.dataset.filter; UI.refresh(); }));
     $('#scPrint', view).addEventListener('click', () => AppsPage.printNext());
     $$('[data-next]', view).forEach(b => b.addEventListener('click', () => AppsPage.addNext(b.dataset.next)));
     if ($('#sendCard', view)) SendDocs.bind($('#sendCard', view));
+    if ($('#scSend', view)) $('#scSend', view).addEventListener('toggle', e => { this.state.sendOpen = e.target.open; });
     const tbl = $('#scTable', view);
     if (tbl) {
       tbl.addEventListener('change', async e => {
