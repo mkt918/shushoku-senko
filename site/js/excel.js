@@ -116,7 +116,104 @@ function jobMatch(it, byJobNumber) {
   return jobs.find(j => j.company === it.company && j.jobTitle === it.jobTitle) || null;
 }
 
+/** 会社名の照合用（株式会社などの語・空白・記号を除く） */
+function companyKey(s) {
+  return toHalf(String(s ?? '')).replace(/[\s　]/g, '').replace(/㈱|㈲|\(株\)|\(有\)|株式会社|有限会社|合同会社|一般社団法人|社会福祉法人|医療法人|学校法人/g, '').toLowerCase();
+}
+
+/** 取り込む希望（番号・会社名・職種）が、登録済みのどの求人か。見つからなければ null */
+function matchSelectionJob(sl) {
+  const jobs = Store.data.jobs;
+  const ck = companyKey(sl.company), tk = companyKey(sl.jobTitle);
+  const sameCo = j => { const k = companyKey(j.company); return ck && k && (k === ck || k.includes(ck) || ck.includes(k)); };
+  if (sl.num != null) {
+    const hits = Jobs.byShort(sl.num);
+    if (hits.length === 1 && (!ck || sameCo(hits[0]))) return hits[0];
+    const byCo = hits.filter(sameCo);
+    if (byCo.length) return byCo.find(j => tk && companyKey(j.jobTitle) === tk) || byCo[0];
+    if (hits.length === 1 && !ck) return hits[0];
+  }
+  if (!ck) return null;
+  const cands = jobs.filter(sameCo);
+  return cands.find(j => tk && companyKey(j.jobTitle) === tk) || (cands.length === 1 && !tk ? cands[0] : null);
+}
+
+const SELECTION_SPECIAL = { '自己開拓': '自己開拓', '公務員': '公務員', '家事手伝': '家事手伝い', '家事手伝い': '家事手伝い', '選考見送り': '' };
+
 const ImportTypes = {
+  selection: {
+    label: '選考会議（就職選考会の形式）',
+    desc: '就職順位・番号・第1〜第5希望（求人票番号の下4桁・企業名・職種）と「確定」の列を、選考会議に取り込みます。番号の生徒の希望を上書きし、確定の印も付けます。登録済みの求人は番号と企業名で照合し、なければ新しい求人票（「事前」は事前選考）を作ります。「自己開拓」「公務員」「家事手伝」は受験方法に反映します。',
+    detect: rows => Excel.findHeader(rows, [/^就職順位$/]) >= 0 && Excel.findHeader(rows, [/^【1】求人票番号/]) >= 0,
+    parse(rows) {
+      const hi = Excel.findHeader(rows, [/^就職順位$/]);
+      const h = rows[hi].map(c => Excel.norm(c));
+      const c = { no3: Excel.col(h, [/^番号$/]), gender: Excel.col(h, [/^性別/]), mogi: Excel.col(h, [/^模試/]) };
+      if (c.no3 < 0) throw new Error('「番号」の列が見つかりません。');
+      const groups = [];
+      for (let k = 1; k <= 5; k++) {
+        const n = Excel.col(h, [new RegExp('^【' + k + '】求人票番号')]);
+        if (n < 0) continue;
+        groups.push({ pref: k, n, co: Excel.col(h, [new RegExp('^【' + k + '】企業名')]), jt: Excel.col(h, [new RegExp('^【' + k + '】職種')]), flag: n - 1 });
+      }
+      if (!groups.length) throw new Error('「【1】求人票番号」などの列が見つかりません。');
+      const items = [], skipped = [];
+      let matched = 0, toCreate = 0, special = 0;
+      rows.slice(hi + 1).forEach((r, i) => {
+        const no3 = studentNo(r[c.no3]);
+        if (!no3) { if (r.some(v => v != null && String(v).trim())) skipped.push({ row: hi + i + 2, reason: badStudentNo(r[c.no3]) || '番号なし' }); return; }
+        const slots = [];
+        for (const g of groups) {
+          const raw = r[g.n], co = g.co >= 0 ? String(r[g.co] ?? '').trim() : '', jt = g.jt >= 0 ? String(r[g.jt] ?? '').trim() : '';
+          const rawS = raw == null ? '' : String(raw).trim();
+          if (!rawS && !co) continue;
+          const confirmed = g.flag >= 0 && String(r[g.flag] ?? '').trim() === '確定';
+          const sp = Object.prototype.hasOwnProperty.call(SELECTION_SPECIAL, rawS);
+          const nm = /^[0-9０-９]+$/.test(rawS) ? Number(toHalf(rawS)) : null;
+          slots.push({ pref: g.pref, num: nm, mark: sp ? rawS : (nm == null ? rawS : ''), company: co, jobTitle: jt, confirmed, special: sp });
+        }
+        const gender = c.gender >= 0 ? String(r[c.gender] ?? '').trim() : '';
+        const mogi = c.mogi >= 0 ? num(r[c.mogi]) : null;
+        items.push({ no3, gender, mogi, slots });
+        slots.forEach(s => { if (s.special) special++; else if (matchSelectionJob(s)) matched++; else toCreate++; });
+      });
+      return { items, skipped, info: '希望 ' + (matched + toCreate + special) + ' 件のうち、登録済みの求人と一致 ' + matched + ' 件／新しく求人票を作る ' + toCreate + ' 件／求人以外（自己開拓・公務員・家事手伝・見送り）' + special + ' 件' };
+    },
+    apply(items) {
+      let added = 0, updated = 0;
+      for (const it of items) {
+        let s = Students.byNo(it.no3);
+        if (!s) { s = blankStudent(it.no3); Store.data.students.push(s); added++; } else updated++;
+        if (it.gender && !s.gender) s.gender = it.gender;
+        if (it.mogi != null && s.mogi == null) s.mogi = it.mogi;
+        if (!s.course) s.course = '就職';
+        let confirmedPref = 0;
+        for (const sl of it.slots) {
+          if (sl.special) {
+            if (sl.confirmed && SELECTION_SPECIAL[sl.mark]) s.method = SELECTION_SPECIAL[sl.mark];
+            continue;
+          }
+          let job = matchSelectionJob(sl);
+          if (!job) {
+            job = Object.assign({ id: uid(), company: sl.company || '（会社名なし）', jobTitle: sl.jobTitle, kind: sl.mark === '事前' ? '事前選考' : '一般', employment: '正社員', workArea: '県内' }, Jobs.batchTag());
+            Store.data.jobs.push(job);
+          }
+          const cur = Apps.prefs(s.id)[sl.pref];
+          if (cur) cur.jobId = job.id; else Store.data.applications.push(blankApplication(s.id, job.id, 1, sl.pref));
+          if (sl.confirmed) confirmedPref = sl.pref;
+        }
+        Apps.of(s.id).forEach(a => { if (a.round === 1) a.confirmed = a.pref === confirmedPref; });
+      }
+      return { added, updated };
+    },
+    template() {
+      const head = ['就職順位', '番号', '性別', '最終P', '生活P', '特活P', '模試'];
+      for (let k = 1; k <= 5; k++) head.push('確定', '【' + k + '】求人票番号下4桁', '【' + k + '】企業名', '【' + k + '】職種');
+      const row = n => [n, 3100 + n, n % 2 ? '男' : '女', '', '', '', '', n === 1 ? '確定' : '', 1200 + n, 'ダミー' + n + '株式会社', '製造', n === 2 ? '確定' : '', 1300 + n, 'ダミー' + (n + 10) + '株式会社', '事務'];
+      Excel.download('取り込み様式_選考会議.xlsx', [{ name: '選考会議', widths: [7, 7, 5, 6, 6, 6, 6, 6, 12, 26, 18, 6, 12, 26, 18], rows: [head, row(1), row(2)] }]);
+    },
+  },
+
   grades: {
     label: '名簿・評定・出欠（元データ形式）',
     desc: '1〜3年の番号、氏名、性別、各学年の評定、欠席・遅刻・早退。3年番号で照合し、評定と出欠を上書きします。',

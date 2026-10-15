@@ -84,7 +84,7 @@ const UI = {
           <div class="modal-head"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="閉じる">×</button></div>
           <div class="modal-body"></div>
           <div class="modal-foot">${buttons.map((b, i) =>
-            `<button class="btn ${b.kind ? 'btn-' + b.kind : ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}</div>
+            `<button class="btn ${b.kind ? 'btn-' + b.kind : ''}" data-i="${i}" ${b.title ? `title="${esc(b.title)}"` : ''}>${esc(b.label)}</button>`).join('')}</div>
         </div>`;
       const bodyEl = $('.modal-body', wrap);
       if (typeof body === 'string') bodyEl.innerHTML = body; else if (body) bodyEl.appendChild(body);

@@ -279,7 +279,8 @@ const StudentsPage = {
       </div>`;
   },
 
-  async edit(id) {
+  /** orderIds＝前後の生徒に移るときの並び（省略すると一覧の並び） */
+  async edit(id, orderIds) {
     const existing = id ? Students.byId(id) : null;
     const fields = this.fields();
     const body = document.createElement('div');
@@ -292,11 +293,12 @@ const StudentsPage = {
     body.addEventListener('click', e => {
       if (e.target.closest('[data-svapply]')) { this.drawSurvey(body, false, true); this.showPoints(body); }
     });
+    // 一覧の並び（検索・並び替えのまま）で、前後の生徒
+    const order = existing ? (orderIds || this.filtered().map(x => x.s.id)) : [];
+    const at = order.indexOf(id), prevId = at > 0 ? order[at - 1] : null, nextId = at >= 0 && at < order.length - 1 ? order[at + 1] : null;
     const buttons = [];
     if (existing) buttons.push({ label: '削除', kind: 'danger-ghost', value: 'delete' });
-    buttons.push({ label: 'キャンセル', value: null });
-    buttons.push({
-      label: '保存', kind: 'primary', value: 'save', onClick: root => {
+    const save = root => {
         const v = Form.read(root, fields);
         const no = studentNo(v.no3);
         if (!no) { UI.toast('3年番号は4桁の数字で入力してください（例：3101）', 'warn'); return false; }
@@ -307,8 +309,14 @@ const StudentsPage = {
         this.fromForm(v, s, this.gradesToObj(this.readGrades(root)));
         if (!existing) Store.data.students.push(s);
         Store.changed();
-      },
-    });
+    };
+    if (existing) {
+      const nb = (id2) => { const s2 = id2 && Students.byId(id2); return s2 ? Students.label(s2) : ''; };
+      if (prevId) buttons.push({ label: '◀ 前の生徒', value: 'prev', onClick: save, title: nb(prevId) });
+      if (nextId) buttons.push({ label: '次の生徒 ▶', value: 'next', onClick: save, title: nb(nextId) });
+    }
+    buttons.push({ label: 'キャンセル', value: null });
+    buttons.push({ label: '保存', kind: 'primary', value: 'save', onClick: save });
     const res = await UI.modal({ title: existing ? `生徒の編集　${Students.label(existing)}` : '生徒の追加', body, wide: 'xl', buttons, onOpen: r => this.showPoints(r) });
     if (res === 'delete') {
       const apps = Apps.of(existing.id).length;
@@ -319,6 +327,7 @@ const StudentsPage = {
       }
     }
     if (res) UI.refresh();
+    if (res === 'prev' || res === 'next') this.edit(res === 'prev' ? prevId : nextId, orderIds);   // 保存して、前後の生徒を開く
   },
 };
 

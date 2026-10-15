@@ -617,3 +617,8 @@ button.slot-cnt:hover { color: var(--accent); text-decoration: underline; }
 .sv-i small { color: var(--ink-3); font-size: 11px; }
 
 .p-nom { font-weight: 700; }
+
+.stu-link { font-size: 14px; text-align: left; font-weight: 700; }
+.sel-g { font-weight: 700; }
+.sel-g-m { color: #1f5f8b; }
+.sel-g-f { color: #b0386a; }

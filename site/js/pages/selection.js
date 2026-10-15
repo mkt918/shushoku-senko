@@ -55,6 +55,7 @@ const Selection = {
         <div><h1>選考会議（1次）</h1>
         <p class="lead">就職順位の順に、第1〜第5希望を<b>求人票の下4桁</b>で入力します（「…」で検索して選ぶこともできます）。確定する希望の<b>チェック（☑）</b>を入れてください（もう一度押すと外れます）。基本は<b>1人1社・求人1枚に1人</b>です。上位の人が確定した求人（確定がまだの人は、その人の第1希望）は、下位の欄が<b>灰色＋取り消し線</b>になり、誰が希望しているかを表示します（選ぶことはできます。募集が複数人の求人は、求人数を直してください）。</p></div>
         <div class="head-actions">
+          <button class="btn" id="selImport">Excel から取り込む</button>
           <button class="btn" id="selAuto" ${seekers.length ? '' : 'disabled'}>上位から確定案を作る</button>
           <button class="btn" id="selXlsx" ${seekers.length ? '' : 'disabled'}>Excel に出力</button>
           <button class="btn btn-primary" id="selPrint" ${seekers.length ? '' : 'disabled'}>会議資料を印刷</button>
@@ -73,7 +74,7 @@ const Selection = {
         </div>
       </div>
       <div class="table-wrap"><table class="tbl tbl-sel" id="selTable">
-        <thead><tr><th class="num">順位</th><th>番号・氏名</th><th class="num">最終P</th><th class="num">生活</th><th class="num">特活</th><th class="num">模試</th>
+        <thead><tr><th class="num">順位</th><th>番号・氏名</th><th class="c">性別</th><th class="num">最終P</th><th class="num">生活</th><th class="num">特活</th><th class="num">模試</th>
         ${Array.from({ length: PREF_N }, (_, i) => `<th>第${i + 1}希望</th>`).join('')}</tr></thead>
         <tbody>${seekers.map(r => this.rowHtml(r)).join('')}</tbody>
       </table></div>
@@ -82,6 +83,7 @@ const Selection = {
       <div id="selJobs"></div>` : `<div class="empty"><p class="empty-title">就職希望者（学校斡旋）がいません</p>
         <p>「生徒・成績」で進路希望調査を取り込むと、就職希望者が順位順に並びます。</p></div>`}`;
 
+    $('#selImport', view).addEventListener('click', () => Importer.run('selection'));
     if (!seekers.length) return;
     this.bindTable($('#selTable', view));
     this.drawJobs($('#selJobs', view));
@@ -132,8 +134,9 @@ const Selection = {
     }).join('');
     return `<tr data-sid="${s.id}" class="${conf ? 'is-confirmed' : ''}">
       <td class="num"><b>${r.jobRank ?? '—'}</b>${r.jobRankTie ? '<br><span class="tag tag-info">同順位</span>' : ''}</td>
-      <td><span class="mono">${esc(s.no3)}</span> ${esc(s.name)}<br><span class="sub">${esc(s.gender)}　${esc((Students.dept(s) || {}).short || '')}${s.hope ? '　' + esc(s.hope) : ''}</span>
+      <td><button class="link-btn stu-link" data-stu="${s.id}" title="生徒の情報を見る・直す"><span class="mono">${esc(s.no3)}</span> ${esc(s.name)}</button><br><span class="sub">${esc((Students.dept(s) || {}).short || '')}${s.hope ? '　' + esc(s.hope) : ''}</span>
         ${conf ? `<br><button class="link-btn" data-unconf="${s.id}">確定を解除</button>` : ''}</td>
+      <td class="c sel-g sel-g-${s.gender === '男' ? 'm' : s.gender === '女' ? 'f' : ''}">${esc(s.gender)}</td>
       <td class="num"><b>${r.p.final ?? ''}</b></td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${s.mogi ?? ''}</td>
       ${cells}</tr>`;
   },
@@ -166,6 +169,8 @@ const Selection = {
       if (e.key === 'Enter' && e.target.classList.contains('slot-no')) { e.preventDefault(); e.target.blur(); }
     });
     tbl.addEventListener('click', e => {
+      const stu = e.target.closest('[data-stu]');
+      if (stu) { StudentsPage.edit(stu.dataset.stu, this.seekers().map(x => x.s.id)).then(() => this.redrawRows()); return; }
       const pick = e.target.closest('.slot-pick');
       if (pick) return this.pickJob(pick.dataset.sid, Number(pick.dataset.pref));
       const ej = e.target.closest('[data-editjob]');
@@ -261,7 +266,7 @@ const Selection = {
       .sort((x, y) => (x.r.jobRank ?? 1e9) - (y.r.jobRank ?? 1e9));
     UI.modal({
       title: `${job.company}　${job.jobTitle || ''}（求人 ${Jobs.capacity(job)} 人）`, wide: true,
-      body: `<table class="tbl"><thead><tr><th class="num">順位</th><th>番号・氏名</th><th class="num">最終P</th><th class="num">生活</th><th class="num">特活</th><th class="num">模試</th><th>希望順</th><th>確定</th></tr></thead>
+      body: `<table class="tbl"><thead><tr><th class="num">順位</th><th>番号・氏名</th><th class="c">性別</th><th class="num">最終P</th><th class="num">生活</th><th class="num">特活</th><th class="num">模試</th><th>希望順</th><th>確定</th></tr></thead>
         <tbody>${list.map(({ a, r }) => `<tr><td class="num">${r.jobRank ?? ''}${r.jobRankTie ? ' <span class="tag tag-info">同順位</span>' : ''}</td>
           <td>${esc(r.s.no3)} ${esc(r.s.name)}</td><td class="num">${r.p.final}</td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${r.s.mogi ?? ''}</td>
           <td>第${a.pref}希望</td><td>${a.confirmed ? '<b>確定</b>' : (Apps.current(r.s.id) ? '<span class="sub">他で確定</span>' : '')}</td></tr>`).join('')}</tbody></table>`,
