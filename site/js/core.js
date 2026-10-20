@@ -387,6 +387,22 @@ const Derive = {
     return m ? m[1].replace(/[都府県]$/, '') : '';
   },
   /** 送付先（変更があればそちら） */
+  /** 住所に県名がなければつける（愛知・岐阜のみ。名古屋市・岐阜市は、つけない）。郵便番号（440〜499＝愛知、500〜509＝岐阜）で判定する */
+  withPref(address, zip) {
+    const a = String(address || '').trim();
+    if (!a) return a;
+    const full = PREFS.filter(Boolean).map(p => (p === '北海道' ? p : p === '東京' ? '東京都' : p === '京都' || p === '大阪' ? p + '府' : p + '県'));
+    if (full.some(p => a.startsWith(p)) || /^(名古屋市|岐阜市)/.test(a)) return a;
+    const z = Number(String(zip || '').replace(/\D/g, '').slice(0, 3));
+    let pref = z >= 440 && z <= 499 ? '愛知県' : z >= 500 && z <= 509 ? '岐阜県' : '';
+    if (!pref && !z) {   // 郵便番号がないときは、市町村名で判定する
+      const aichi = '豊橋 岡崎 一宮 瀬戸 半田 春日井 豊川 津島 碧南 刈谷 豊田 安城 西尾 蒲郡 犬山 常滑 江南 小牧 稲沢 新城 東海 大府 知多 知立 尾張旭 高浜 岩倉 豊明 日進 田原 愛西 清須 北名古屋 弥富 みよし あま 長久手 愛知郡 西春日井郡 丹羽郡 海部郡 知多郡 額田郡 北設楽郡'.split(' ');
+      const gifu = '大垣 高山 多治見 関 中津川 美濃 瑞浪 羽島 恵那 美濃加茂 土岐 各務原 可児 山県 瑞穂 飛騨 本巣 郡上 下呂 海津 羽島郡 養老郡 不破郡 安八郡 揖斐郡 加茂郡 可児郡 大野郡'.split(' ');
+      const hit = l => l.some(c => a.startsWith(/郡$/.test(c) ? c : c + '市'));
+      pref = hit(aichi) ? '愛知県' : hit(gifu) ? '岐阜県' : '';
+    }
+    return pref + a;
+  },
   sendTo(job) {
     const alt = job.sendZip || job.sendAddress || job.sendDept || job.sendContact;
     return alt ? {

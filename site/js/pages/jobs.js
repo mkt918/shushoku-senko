@@ -16,7 +16,7 @@ const JOB_FIELDS = [
   { k: 'company', label: '事業所名', req: true, wide: true, ph: '株式会社　〇〇　〇〇工場' },
   { k: 'kana', label: 'フリガナ', wide: true },
   { k: 'zip', label: '郵便番号', ph: '000-0000', narrow: true },
-  { k: 'address', label: '所在地', wide: true },
+  { k: 'address', label: '所在地', wide: true, pref: 'zip', help: '県名がないとき、郵便番号から愛知県・岐阜県をつけられます（名古屋市・岐阜市は、つけません）。宛名ラベルには、ボタンを押さなくても自動でつきます' },
   { k: 'tel', label: '電話番号', ph: '000-0000-0000' },
   { k: 'employees', label: '全従業員数', type: 'number', narrow: true },
   { k: 'capital', label: '資本金（万円）', type: 'number' },
@@ -47,7 +47,7 @@ const JOB_FIELDS = [
 
   { sec: '書類の送付先（職場見学の電話で窓口と違うと分かった場合のみ）' },
   { k: 'sendZip', label: '郵便番号', narrow: true },
-  { k: 'sendAddress', label: '住所', wide: true },
+  { k: 'sendAddress', label: '住所', wide: true, pref: 'sendZip' },
   { k: 'sendDept', label: '部署' },
   { k: 'sendContact', label: '担当者名' },
 
@@ -292,6 +292,13 @@ const Jobs = {
     const body = document.createElement('div');
     body.className = 'form';
     body.innerHTML = Form.html(JOB_FIELDS, obj);
+    body.addEventListener('click', e => {
+      const b = e.target.closest('[data-pref]'); if (!b) return;
+      const inp = $(`[data-k="${b.dataset.pref}"]`, body), zip = $(`[data-k="${b.dataset.zip}"]`, body), zip0 = $('[data-k="zip"]', body);
+      const v = Derive.withPref(inp.value, (zip && zip.value) || (zip0 && zip0.value));
+      if (v === inp.value.trim()) { UI.toast('変わりません（県名がある、名古屋市・岐阜市、または郵便番号が愛知・岐阜でない）', 'warn'); return; }
+      inp.value = v; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     body.addEventListener('input', () => this.updateDerived(body));
     body.addEventListener('change', () => this.updateDerived(body));
 

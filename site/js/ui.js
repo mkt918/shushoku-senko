@@ -189,7 +189,7 @@ const Form = {
       }
       out += `<div class="field ${f.wide ? 'wide' : ''} ${f.narrow ? 'narrow' : ''}">
         <label for="${id}" class="label">${esc(f.label)}${f.req ? ' <span class="req">必須</span>' : ''}</label>
-        ${input}${f.help ? `<span class="help">${esc(f.help)}</span>` : ''}</div>`;
+        ${input}${f.pref ? `<button type="button" class="btn btn-sm" data-pref="${f.k}" data-zip="${f.pref}" style="margin-top:4px">県名をつける</button>` : ''}${f.help ? `<span class="help">${esc(f.help)}</span>` : ''}</div>`;
     }
     if (open) out += '</div></fieldset>';
     return out;

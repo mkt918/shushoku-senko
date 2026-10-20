@@ -198,6 +198,7 @@ const Docs = {
     const fit = (txt, size, mm) => (f(mm) > 0 ? this.fitSize(txt, f(size), f(mm)) : f(size));
     const row = (t, left, size, body, css = '') => `<div style="position:absolute;left:${left}mm;top:${t}mm;font-size:${size}pt;line-height:1;white-space:nowrap;${css}">${body}</div>`;
     const to = this.addressee(d);
+    d.address = Derive.withPref(d.address, d.zip);
     return `<div class="lb" style="position:relative;padding:0">
       ${L.showZip !== false && d.zip ? row(top, side + ind, f(L.zipSize), '〒' + esc(d.zip)) : ''}
       ${row(top + f(L.addrTop), side + ind, fit(d.address, L.addrSize, L.fitAddr), esc(d.address))}
@@ -207,6 +208,7 @@ const Docs = {
   /** レターパックプラス用の宛名ラベル（現行の PDF の配置。1片 100.3×140.8mm に、宛先・差出人・「就職応募書類在中」）。位置は片の左上からの距離（mm） */
   letterLabelHtml(g) {
     const d = Derive.sendTo(g.job), sc = this.school();
+    d.address = Derive.withPref(d.address, d.zip);
     const co = String(g.job.company || '');
     const to = [d.dept, d.contact].filter(Boolean).join('　') || '人事採用担当者';
     const t = String(sc.tel || '').split('-');
@@ -224,7 +226,7 @@ const Docs = {
       ${g.job.tel ? `<div style="position:absolute;top:57mm;left:49.2mm;width:19.5mm;text-align:center;font-size:8pt;line-height:1">${esc(g.job.tel)}</div>` : ''}
       ${line(62.5)}
       ${at(64.3, X, 10.3, sc.zip ? '〒' + esc(sc.zip) : '&nbsp;')}
-      ${wrap(71.2, X, W, 19, 10.3, esc(sc.address))}
+      ${wrap(71.2, X, W, 19, 10.3, esc(Derive.withPref(sc.address, sc.zip)))}
       ${at(91.3, 20, 13.2, esc(sc.name))}
       ${at(98.1, 20, 13.2, esc(sc.dept || '進路指導部'))}
       ${t.length === 3 ? `${at(106.5, 32.8, 10.3, esc(t[0]))}${at(106.2, 47.5, 13.2, '(')}${at(106.4, 55.2, 11.3, esc(t[1]))}${at(106.2, 68.8, 13.2, ')')}${at(106.4, 77.4, 11.3, esc(t[2]))}` : at(106.4, 32.8, 11.3, 'TEL　' + esc(sc.tel || ''))}
