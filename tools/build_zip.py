@@ -16,7 +16,7 @@ VERSION = re.search(r"version:\s*'([\d.]+)'", open(os.path.join(ROOT, 'site/js/c
 OUT = os.path.join(ROOT, 'dist', f'{NAME}_v{VERSION}.zip')
 README_SRC = os.path.join(ROOT, 'tools', 'readme_template.txt')
 
-DOCS = ['設計書.md', '00_設計プラン.md', 'CLAUDE.md']
+DOCS = ['パッチノート.md', '設計書.md', '00_設計プラン.md', 'CLAUDE.md']
 BAD_EXT = {'.json', '.xlsx', '.xlsm', '.xls', '.docx', '.csv', '.log', '.pdf'}
 
 
