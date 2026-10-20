@@ -21,7 +21,7 @@ const VisitsPage = {
     $$('[data-tab]', view).forEach(b => b.addEventListener('click', () => { st.tab = b.dataset.tab; UI.refresh(); }));
     $('#vOnlyOpen', view).addEventListener('change', e => { st.onlyOpen = e.target.checked; st.sel = null; UI.refresh(); });
     if (!Apps.currents().length && st.tab !== 'guide') {
-      $('#vBody', view).innerHTML = `<div class="empty"><p class="empty-title">確定した応募先がありません</p><p>「選考会議」で応募先を確定すると、ここに求人ごとに並びます。</p></div>`;
+      $('#vBody', view).innerHTML = `<div class="empty"><p class="empty-title">確定した応募先がありません</p><p>「選考会議（1次）」で応募先を確定すると、ここに求人ごとに並びます。</p></div>`;
       return;
     }
     this['draw_' + st.tab]($('#vBody', view), groups);
@@ -37,7 +37,7 @@ const VisitsPage = {
         <td><input type="checkbox" data-job="${g.job.id}" ${st.sel.has(g.job.id) ? 'checked' : ''}></td>
         <td class="num mono">${esc(Derive.short(g.job))}</td><td>${esc(g.job.company)}</td><td>${esc(g.job.jobTitle || '')}</td>
         <td class="sm">${g.apps.length} 人</td><td class="sm">${dates.map(fmtMD).join('、') || '<span class="sub">未定</span>'}</td>
-        <td class="sm">${dest.address ? esc(dest.address) : '<span class="tag tag-warn">住所未入力</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
+        <td class="sm">${dest.address ? esc(Derive.withPref(dest.address, dest.zip)) : '<span class="tag tag-warn">住所未入力</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
   },
   bindSelectable(root, groups) {
     const st = this.state;
@@ -121,7 +121,7 @@ const VisitsPage = {
     el.innerHTML = `
       <div class="toolbar">
         <label class="inline">開始位置 <input type="number" id="bStart" value="${st.start}" min="1" max="${L.cols * L.rows}" style="width:64px"></label>
-        <span class="sub">用紙：${L.cols}列×${L.rows}段（${L.w}×${L.h}mm）。使いかけの用紙は、空いている最初のラベルの番号（左上が1、右へ数える）を指定します。</span>
+        <span class="sub">用紙：${L.cols}列×${L.rows}段（幅 ${L.w}mm・高さ ${String(L.rowH || '').trim() ? '段ごとに設定' : L.h + 'mm'}）。使いかけの用紙は、空いている最初のラベルの番号（左上が1、右へ数える）を指定します。</span>
         <button class="btn btn-primary" id="bPrint">宛名ラベルを印刷（選んだ求人）</button>
       </div>
       <p class="help">宛先は求人票の「書類の送付先」があればそちら、なければ事業所の住所を使います。用紙の寸法は「設定」で変更できます。</p>

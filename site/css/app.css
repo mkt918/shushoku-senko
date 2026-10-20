@@ -730,3 +730,4 @@ details.card-fold > .card { border: 0; box-shadow: none; padding: 8px 0 0; margi
 .dash-todo a.tag { text-decoration: none; font-size: 12.5px; padding: 2px 8px; }
 .tbl-list input.w-zip { width: 92px; }
 .tbl-list input.w-addr { width: 100%; min-width: 260px; }
+.lb-demo > .lb { height: 100%; }

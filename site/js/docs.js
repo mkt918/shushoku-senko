@@ -41,7 +41,11 @@ const Docs = {
 
   /* ---------- 設定（帳票のレイアウト）に従って文書を組み立てる ---------- */
   /** 文書 key（cover／visitLetter／visitConfirm／label）のレイアウト。未設定なら既定 */
-  layout(key) { return (Store.data.settings.docLayout || {})[key] || defaultDocLayout()[key]; },
+  layout(key) {
+    const saved = (Store.data.settings.docLayout || {})[key], def = defaultDocLayout()[key];
+    // 宛名ラベルは項目が増えたので、以前に保存した設定にも既定の値を補う（位置の項目がないと、全部の行が重なる）
+    return saved ? (key === 'label' ? Object.assign({}, def, saved) : saved) : def;
+  },
   /** @page の余白（上 右 下 左）。mm */
   margin(key) { const m = this.layout(key).style.margin; return m.map(v => (num(v) ?? 0) + 'mm').join(' '); },
 

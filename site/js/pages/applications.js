@@ -32,7 +32,7 @@ const AppsPage = {
       <div class="page-head">
         <div><h1>応募・受験</h1><p class="lead">確定した応募先ごとに、書類送付・試験日・合否・受験報告書を記録します。合否は様式13や統計に自動で反映されます。</p></div>
         <div class="head-actions">
-          <button class="btn" id="apNextPrint" ${need.length ? '' : 'disabled'}>2次以降の選考資料を印刷</button>
+          <button class="btn" id="apNextPrint" ${need.length ? '' : 'disabled'}>次の応募先が必要な生徒の一覧を印刷</button>
         </div>
       </div>
       <div id="apStats">${this.statsHtml()}</div>
@@ -46,7 +46,7 @@ const AppsPage = {
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="apTable">
         <thead><tr><th class="num">番号</th><th>氏名</th><th>何次</th><th>応募先</th><th>書類送付</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>報告書（3日以内）</th><th>メモ</th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
-        : '<div class="empty"><p class="empty-title">該当する応募はありません</p><p>「選考会議」で応募先を確定すると、ここに並びます。</p></div>'}
+        : '<div class="empty"><p class="empty-title">該当する応募はありません</p><p>「選考会議（1次）」で応募先を確定すると、ここに並びます。</p></div>'}
 
       <div id="apNeed">${this.needHtml(need)}</div>
 `;
@@ -75,7 +75,7 @@ const AppsPage = {
   needHtml(need) {
     return need.length ? `<section class="card">
         <h2>次の応募先が必要な生徒</h2>
-        <p class="sub">直近の結果が不採用・辞退の就職希望者です（1次の応募先が未確定の人は「選考会議」で決めます）。</p>
+        <p class="sub">直近の結果が不採用・辞退の就職希望者です（1次の応募先が未確定の人は「選考会議（1次）」で決めます）。</p>
         <div class="table-wrap"><table class="tbl">
           <thead><tr><th class="num">番号</th><th>氏名</th><th>これまでの応募</th><th></th></tr></thead>
           <tbody>${need.map(s => `<tr><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td>
@@ -138,7 +138,7 @@ const AppsPage = {
   async addNext(studentId) {
     const s = Students.byId(studentId);
     const cur = Apps.current(studentId);
-    if (!cur) { UI.toast('1次の応募先は「選考会議」で確定してください', 'warn'); return; }
+    if (!cur) { UI.toast('1次の応募先は「選考会議（1次）」で確定してください', 'warn'); return; }
     const round = cur.round + 1;
     const body = document.createElement('div');
     body.innerHTML = `<p>${esc(Students.label(s))}　の <b>${round}次</b> の応募先</p>
