@@ -3,8 +3,16 @@
    7. 2次応募（1次で内定しなかった生徒の、2次以降の応募先と結果）
    ============================================================ */
 
+/** 2次選考会議の確認リスト（空白→〇→済→空白 と押すたびに変わる）。生徒ごとに、いまの次（2次・3次…）の分を記録する */
+const SECOND_CHECKS = [['line', '一覧表線引き'], ['form', '求職確認書'], ['meet', '選考会議'], ['addrTel', '送付先住所確認Tel'], ['mailTel', '郵送した旨Tel']];
+const CHECK_STEPS = ['', '〇', '済'];
+
 const SecondPage = {
   state: { filter: '' },
+
+  chkCell(s) {
+    return SECOND_CHECKS.map(([k, l]) => `<td class="c"><button type="button" class="chk-btn" data-chk="${k}" data-sid="${s.id}" title="${l}（押すと 空白→〇→済 と変わります）">${esc((s.second || {})[k] || '')}</button></td>`).join('');
+  },
 
   /** 1度でも不採用・辞退になった就職希望者（就職順位つき） */
   rows() {
@@ -44,7 +52,7 @@ const SecondPage = {
           .map(([v, l]) => `<button class="${f === v ? 'on' : ''}" data-filter="${v}">${l}</button>`).join('')}</div>
       </div>
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="scTable">
-        <thead><tr><th class="num">就職順位</th><th class="num">番号</th><th>氏名</th><th>前の応募（合否を直せます）</th><th>何次</th><th>応募先</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>メモ</th><th></th></tr></thead>
+        <thead><tr><th class="num">就職順位</th><th class="num">番号</th><th>氏名</th><th>前の応募（合否を直せます）</th><th>何次</th><th>応募先</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>メモ</th>${SECOND_CHECKS.map(([, l]) => `<th class="chk-th">${l}</th>`).join('')}<th></th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
         : `<div class="empty"><p class="empty-title">${all.length ? '該当する生徒はいません' : '2次応募の対象者はまだいません'}</p><p>「応募・受験」で合否を「不採用」または「辞退」にすると、ここに並びます。</p></div>`}
       ${Store.data.applications.some(a => a.confirmed && a.round >= 2) ? `<details class="card-fold" ${this.state.sendOpen ? 'open' : ''} id="scSend"><summary>応募書類の送付（2次以降の応募先の送付状・宛名ラベル）</summary>${(SendDocs.state.minRound = 2, SendDocs.html())}</details>` : ''}
@@ -72,6 +80,13 @@ const SecondPage = {
         UI.refresh();      // 並び（応募先が未定／結果待ち）が変わるので、この画面は描き直す
       });
       tbl.addEventListener('click', async e => {
+        const c = e.target.closest('[data-chk]');
+        if (c) {
+          const st = Students.byId(c.dataset.sid); if (!st) return;
+          st.second = Object.assign({}, st.second);
+          st.second[c.dataset.chk] = CHECK_STEPS[(CHECK_STEPS.indexOf(st.second[c.dataset.chk] || '') + 1) % CHECK_STEPS.length];
+          c.textContent = st.second[c.dataset.chk]; Store.changed(); return;
+        }
         const b = e.target.closest('[data-delapp]'); if (!b) return;
         const a = Store.data.applications.find(x => x.id === b.dataset.delapp); if (!a) return;
         const j = Apps.job(a);
@@ -91,12 +106,13 @@ const SecondPage = {
     const round = Math.max(2, ...all.filter(x => x.wait && x.cur).map(x => x.cur.round + 1));
     const title = `選考会議後の学校斡旋就職希望者（${round}次）`;
     const cell = (v, cls = '') => `<td class="${cls}">${v === '' ? '' : v}</td>`;
+    const chk = (s, k) => { const v = (s.second || {})[k]; return `<td>${v === '〇' ? '<span class="sc-o"></span>' : v === '済' ? '済' : ''}</td>`; };
     const rowHtml = ({ s, cur, wait }) => {
       const a = wait ? null : cur, job = a ? Apps.job(a) : null, won = !!a && a.result === '内定';
       return `<tr class="${won ? 'p-shade' : ''}">${cell(esc(s.no3), 'sc-no')}${cell(esc(s.name))}
         ${cell(job ? esc(Derive.short(job)) : '', 'sc-dl r')}${cell(job ? esc(job.company) : '', 'sc-dl l sm')}${cell(job ? esc(job.jobTitle || '') : '', 'sc-dl l xs')}
-        ${cell('')}${cell(a ? esc(when(a.visitDate, a.visitTime)) : '', 'sm')}${cell('')}${cell('')}${cell('')}
-        ${cell(a && a.docsSent ? esc(md(a.docsSentDate) || '〇') : '', 'sm')}${cell('')}${cell(a ? esc(when(a.examDate, a.examTime)) : '', 'sm')}
+        ${chk(s, 'line')}${cell(a ? esc(when(a.visitDate, a.visitTime)) : '', 'sm')}${chk(s, 'form')}${chk(s, 'meet')}${chk(s, 'addrTel')}
+        ${cell(a && a.docsSent ? esc(md(a.docsSentDate) || '〇') : '', 'sm')}${chk(s, 'mailTel')}${cell(a ? esc(when(a.examDate, a.examTime)) : '', 'sm')}
         ${cell(a && a.reportSubmitted ? '〇' : '')}${cell(a && a.result ? (a.result === '内定' ? '〇' : '×') : '')}</tr>`;
     };
     const blank = () => `<tr>${cell('', 'sc-no')}${'<td></td>'.repeat(14)}</tr>`;
@@ -133,7 +149,7 @@ const SecondPage = {
     const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td><td class="sm">${this.histCell(s, wait)}</td>`;
     if (wait) {
       return `<tr class="res-none">${head}<td class="c">${cur ? cur.round + 1 : 1}</td>
-        <td colspan="7"><button class="btn btn-sm" data-next="${s.id}">${(cur ? cur.round + 1 : 1)}次の応募先を決める</button></td></tr>`;
+        <td colspan="6"><button class="btn btn-sm" data-next="${s.id}">${(cur ? cur.round + 1 : 1)}次の応募先を決める</button></td>${this.chkCell(s)}<td></td></tr>`;
     }
     const a = cur, job = Apps.job(a);
     const fld = (k, type = 'text', cls = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}">`;
@@ -141,7 +157,7 @@ const SecondPage = {
       <td class="sm">${job ? `<span class="mono">${esc(Derive.short(job))}</span> ${esc(job.company)}<br><span class="sub">${esc(job.jobTitle || '')}</span>` : '—'}</td>
       <td>${fld('examDate', 'date', 'w-date')}</td><td>${fld('examTime', 'text', 'w-hm')}</td>
       <td><select data-aid="${a.id}" data-f="result">${RESULTS.map(v => `<option value="${v}" ${a.result === v ? 'selected' : ''}>${AppsPage.resultLabel(v)}</option>`).join('')}</select></td>
-      <td>${fld('resultDate', 'date', 'w-date')}</td><td>${fld('note', 'text', 'w-memo')}</td>
+      <td>${fld('resultDate', 'date', 'w-date')}</td><td>${fld('note', 'text', 'w-memo')}</td>${this.chkCell(s)}
       <td>${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">取り消し</button>` : ''}</td></tr>`;
   },
 };

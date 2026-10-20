@@ -413,6 +413,9 @@ td.slot.is-over { background: var(--danger-soft); box-shadow: inset 3px 0 0 var(
 .doc-tbl.dot tbody td { border-top: 0.2mm dotted #000; border-bottom: 0.2mm dotted #000; }
 .doc-tbl.dot tbody tr:last-child td { border-bottom: 0.2mm solid #000; }
 .doc-tbl.dot thead th { border-bottom: 0.2mm solid #000; }
+.chk-btn { min-width: 2.2em; height: 1.8em; border: 1px solid var(--line, #bbb); background: #fff; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.chk-btn:hover { background: #f0f4ff; }
+.chk-th { font-size: 11px; white-space: normal; width: 4.5em; }
 /* 2次選考会議の資料（A4 横） */
 .sc-sheet { font-family: var(--font); color: #000; }
 .sc-head { display: flex; justify-content: space-between; align-items: flex-start; width: 251.5mm; margin-bottom: 3mm; }
