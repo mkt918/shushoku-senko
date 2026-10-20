@@ -262,7 +262,7 @@ function defaultSettings() {
     // 帳票の日付
     docs: { visitLetterDate: '', sendDate: '' },
     // 報告・統計の表示
-    reports: { hideZero: false },   // true＝0は記載しない（空欄にする）
+    reports: { hideZero: false, hideFail: false },   // true＝0は記載しない（空欄にする）
     // 年度末の資料
     yearend: { workRecent: 5, senshuYears: 7, univYears: 8, dropEmpty: true, asOf: '', notes: '' },
     // 帳票のレイアウト（null＝既定。「帳票の設定」画面で編集すると、ここに保存される）
