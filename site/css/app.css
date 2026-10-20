@@ -413,6 +413,21 @@ td.slot.is-over { background: var(--danger-soft); box-shadow: inset 3px 0 0 var(
 .doc-tbl.dot tbody td { border-top: 0.2mm dotted #000; border-bottom: 0.2mm dotted #000; }
 .doc-tbl.dot tbody tr:last-child td { border-bottom: 0.2mm solid #000; }
 .doc-tbl.dot thead th { border-bottom: 0.2mm solid #000; }
+/* 2次選考会議の資料（A4 横） */
+.sc-sheet { font-family: var(--font); color: #000; }
+.sc-head { display: flex; justify-content: space-between; align-items: flex-start; width: 251.5mm; margin-bottom: 3mm; }
+.sc-title { font-size: 14pt; margin: 0; }
+.sc-note { font-size: 8pt; margin: 1mm 0 0; }
+.sc-warn { font-size: 14pt; border: 1.2mm double #000; padding: 0 2mm; margin-top: 1mm; }
+.sc-tbl { border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
+.sc-tbl th, .sc-tbl td { border: 0.25mm solid #000; text-align: center; padding: 0 0.8mm; height: 7.3mm; vertical-align: middle; overflow: hidden; line-height: 1.1; }
+.sc-tbl th { font-weight: 400; font-size: 9.5pt; height: 7mm; }
+.sc-tbl .sc-no { font-size: 10pt; }
+.sc-tbl .sc-dl { border-left: 0.25mm dotted #000; border-right: 0.25mm dotted #000; }
+.sc-tbl .l { text-align: left; } .sc-tbl .r { text-align: right; }
+.sc-tbl .sm { font-size: 7.5pt; } .sc-tbl .xs { font-size: 6.5pt; } .sc-tbl .xxs { font-size: 5.5pt; }
+.sc-o { display: inline-block; width: 4mm; height: 4mm; border: 0.3mm solid #000; border-radius: 50%; vertical-align: middle; }
+.sc-tbl tr { page-break-inside: avoid; break-inside: avoid; }
 .doc-sign { margin-top: 8mm; }
 .doc-contact { margin: 10mm 0 0 96mm; line-height: 1.6; font-size: 10.5pt; }
 

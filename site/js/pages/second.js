@@ -30,7 +30,7 @@ const SecondPage = {
       <div class="page-head">
         <div><h1>2次応募</h1><p class="lead">1次で内定しなかった（不採用・辞退）生徒が、ここに自動で並びます。応募先を決め、試験日・合否まで続けて記録します。</p></div>
         <div class="head-actions">
-          <button class="btn" id="scPrint" ${wait.length ? '' : 'disabled'}>2次以降の選考資料を印刷</button>
+          <button class="btn btn-primary" id="scPrint" ${all.length ? '' : 'disabled'}>2次選考会議の資料を印刷</button>
         </div>
       </div>
       <div class="stats stats-sm">
@@ -50,7 +50,7 @@ const SecondPage = {
       ${Store.data.applications.some(a => a.confirmed && a.round >= 2) ? `<details class="card-fold" ${this.state.sendOpen ? 'open' : ''} id="scSend"><summary>応募書類の送付（2次以降の応募先の送付状・宛名ラベル）</summary>${(SendDocs.state.minRound = 2, SendDocs.html())}</details>` : ''}
 `;
     $$('[data-filter]', view).forEach(b => b.addEventListener('click', () => { this.state.filter = b.dataset.filter; UI.refresh(); }));
-    $('#scPrint', view).addEventListener('click', () => AppsPage.printNext());
+    $('#scPrint', view).addEventListener('click', () => this.printMeeting());
     $$('[data-next]', view).forEach(b => b.addEventListener('click', () => AppsPage.addNext(b.dataset.next)));
     if ($('#sendCard', view)) SendDocs.bind($('#sendCard', view));
     if ($('#scSend', view)) $('#scSend', view).addEventListener('toggle', e => { this.state.sendOpen = e.target.open; });
@@ -81,6 +81,39 @@ const SecondPage = {
         UI.toast(`${a.round}次の応募を取り消しました`);
       });
     }
+  },
+
+  /** 2次選考会議の資料（A4 横）。1度でも不採用・辞退になった就職希望者を並べ、会議で書き込む欄をつける。内定した人の行は網掛け */
+  printMeeting() {
+    const all = this.rows();
+    const md = iso => { const d = parseISO(iso); return d ? `${d.getMonth() + 1}/${d.getDate()}(${WEEK[d.getDay()]})` : ''; };
+    const when = (date, time) => [md(date), time].filter(Boolean).join('');
+    const round = Math.max(2, ...all.filter(x => x.wait && x.cur).map(x => x.cur.round + 1));
+    const title = `選考会議後の学校斡旋就職希望者（${round}次）`;
+    const cell = (v, cls = '') => `<td class="${cls}">${v === '' ? '' : v}</td>`;
+    const rowHtml = ({ s, cur, wait }) => {
+      const a = wait ? null : cur, job = a ? Apps.job(a) : null, won = !!a && a.result === '内定';
+      return `<tr class="${won ? 'p-shade' : ''}">${cell(esc(s.no3), 'sc-no')}${cell(esc(s.name))}
+        ${cell(job ? esc(Derive.short(job)) : '', 'sc-dl r')}${cell(job ? esc(job.company) : '', 'sc-dl l sm')}${cell(job ? esc(job.jobTitle || '') : '', 'sc-dl l xs')}
+        ${cell('')}${cell(a ? esc(when(a.visitDate, a.visitTime)) : '', 'sm')}${cell('')}${cell('')}${cell('')}
+        ${cell(a && a.docsSent ? esc(md(a.docsSentDate) || '〇') : '', 'sm')}${cell('')}${cell(a ? esc(when(a.examDate, a.examTime)) : '', 'sm')}
+        ${cell(a && a.reportSubmitted ? '〇' : '')}${cell(a && a.result ? (a.result === '内定' ? '〇' : '×') : '')}</tr>`;
+    };
+    const blank = () => `<tr>${cell('', 'sc-no')}${'<td></td>'.repeat(14)}</tr>`;
+    const body = all.map(rowHtml).join('') + Array(Math.max(0, 10 - all.length)).fill(blank()).join('');
+    const circle = '<span class="sc-o"></span>';
+    const sample = `<tr class="sc-ex"><td>例</td><td>〇〇　〇〇</td><td class="sc-dl r">50</td><td class="sc-dl l sm">ダミー1株式会社<br>〇〇工場</td><td class="sc-dl l xs">製造担当職</td>
+      <td>${circle}</td><td class="sm l">1/10(金)14:09～</td><td>${circle}</td><td>${circle}</td><td>${circle}</td><td class="xs">求人票マーカー先に送付<br>〇</td><td>${circle}</td><td class="sm">職場見学と同日実施</td><td>${circle}</td><td>${circle}</td></tr>`;
+    const th = (t, cls = '') => `<th class="${cls}">${t}</th>`;
+    const head = `<tr>${th('生徒番号')}${th('氏名')}<th colspan="3">志望企業情報</th>${th('一覧表<br>線引き', 'xs')}${th('職場見学日時')}${th('求職<br>確認書', 'sm')}${th('選考<br>会議', 'sm')}${th('送付先住所<br>確認Tel', 'xxs')}${th('書類送付')}${th('郵送した旨Tel<br><span class="xs">(試験日書面依頼)</span>', 'sm')}${th('試験日')}${th('結果<br>報告書', 'sm')}${th('合否')}</tr>`;
+    const widths = [14.6, 20, 10.6, 32.7, 20, 8.2, 27.5, 10.1, 7.5, 10.4, 21.9, 21.6, 28.5, 9.2, 8.7];
+    Print.open({
+      title: `2次選考会議資料_${nendoLabel(Store.data.year)}`, orientation: 'landscape', margin: '8mm 6mm 6mm 6mm',
+      html: `<div class="p-page sc-sheet">
+        <div class="sc-head"><div><p class="sc-title">${esc(title)}</p><p class="sc-note">※網掛けは進路決定済みの生徒</p></div><div class="sc-warn">※取扱注意※</div></div>
+        <table class="sc-tbl"><colgroup>${widths.map(w => `<col style="width:${w}mm">`).join('')}</colgroup>
+        <thead>${head}</thead><tbody>${body}${sample}</tbody></table></div>`,
+    });
   },
 
   /** 前の応募（合否を直せる）。応募先が未定の人は、いちばん新しい応募（不採用にした応募）も直せる */
