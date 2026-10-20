@@ -34,7 +34,7 @@ const Docs = {
   /** 宛名の敬称行 */
   addressee(dest) {
     if (dest.contact) return `${dest.dept ? esc(dest.dept) + '　' : ''}${esc(dest.contact)}　様`;
-    return `${esc(dest.dept || '人事採用担当者')}　御中`;
+    return dest.dept ? `${esc(dest.dept)}　御中` : '人事採用担当者　様';
   },
 
   principalMissing() { const s = this.school(); return !s.principal || !s.director; },
@@ -63,7 +63,8 @@ const Docs = {
     return {
       '日付': key === 'visitLetter' ? this.visitDateText() : fmtWareki(iso),
       '会社名': job.company || '',
-      '宛先': `${dest.dept ? dest.dept + '　' : ''}${dest.contact ? dest.contact + '　様' : '人事採用担当者　様'}`,
+      // 既定の「人事採用担当者　様」は、現行の送付状に合わせて字間を空ける（半角の半分＝EN SPACE）
+      '宛先': dest.dept || dest.contact ? `${dest.dept ? dest.dept + '　' : ''}${dest.contact ? dest.contact + '　様' : '人事採用担当者　様'}` : [...'人事採用担当者'].join(' ') + '　　様',
       '部署': dest.dept || '', '担当者': dest.contact || '',
       '職種': job.jobTitle || '', '求人番号': job.jobNumber || '',
       '見学日': dates.length === 1 ? fmtMD(dates[0]) : '　　　月　　日（　　）',
@@ -93,32 +94,61 @@ const Docs = {
     }
   },
 
-  blockHtml(b, ctx, g) {
+  /** 文字列が mm の幅に収まるよう、文字の大きさ（pt）を縮める。全角は1字＝1em、半角は0.55em とみなす */
+  fitSize(text, size, mm) {
+    const em = [...String(text)].reduce((t, c) => t + (c.charCodeAt(0) < 0x100 || (c >= '｡' && c <= 'ﾟ') ? 0.55 : 1), 0);
+    const need = em * size * 0.3528;
+    return need > mm && em > 0 ? Math.floor(mm / (em * 0.3528) * 10) / 10 : size;
+  },
+
+  /** 表・記入欄の左右の余白（mm）。表の幅は残りいっぱい */
+  tableBox(b) {
+    const l = num(b.left) || 0, r = num(b.right) || 0;
+    return `margin-left:${l}mm;width:calc(100% - ${l + r}mm)`;
+  },
+
+  blockHtml(b, ctx, g, base = 11) {
     const n = v => num(v);
     if (b.type === 'space') return `<div style="height:${n(b.height) ?? 5}mm"></div>`;
     if (b.type === 'text') {
       const st = [`text-align:${b.align || 'left'}`];
-      if (n(b.size)) st.push(`font-size:${n(b.size)}pt`);
+      let size = n(b.size);
+      if (n(b.fit)) size = this.fitSize(this.fill(b.text, ctx).split('\n')[0], size || base, n(b.fit));
+      if (size) st.push(`font-size:${size}pt`);
       if (b.bold) st.push('font-weight:700');
+      if (n(b.lh)) st.push(`line-height:${n(b.lh)}`);
       const ind = n(b.indent) || 0, left = n(b.left) || 0;
       if (ind < 0) { st.push(`margin-left:${left}mm`, `padding-left:${-ind}em`, `text-indent:${ind}em`); }
       else { st.push(`margin-left:${left}mm`); if (ind) st.push(`text-indent:${ind}em`); }
+      if (n(b.right)) st.push(`margin-right:${n(b.right)}mm`);
       if (n(b.before)) st.push(`margin-top:${n(b.before)}mm`);
       st.push(`margin-bottom:${n(b.after) || 0}mm`);
       if (n(b.spacing)) st.push(`letter-spacing:${n(b.spacing)}em`);
-      return `<div class="dl-text" style="${st.join(';')}">${this.html(b.text, ctx)}</div>`;
+      if (b.box) st.push('border:0.2mm solid #000', 'padding:2.8mm 3mm 3.4mm 4.2mm', 'box-sizing:border-box');
+      if (n(b.ul)) st.push(`width:${n(b.ul)}mm`, 'border-bottom:0.2mm solid #000', 'box-sizing:border-box');
+      if (n(b.height)) {
+        // 1行を、決まった高さの欄の真ん中に置く（Excel の行の高さに合わせる用）
+        const just = { right: 'flex-end', center: 'center' }[b.align] || 'flex-start';
+        return `<div class="dl-text" style="${st.join(';')};height:${n(b.height)}mm;display:flex;align-items:center;justify-content:${just}"><span style="white-space:nowrap">${this.html(b.text, ctx)}</span></div>`;
+      }
+      let body = this.html(b.text, ctx);
+      if (n(b.hang)) body = this.fill(b.text, ctx).split(/\r?\n/).map(t => `<div style="padding-left:${n(b.hang)}em;text-indent:-${n(b.hang)}em">${esc(t)}</div>`).join('');
+      return `<div class="dl-text" style="${st.join(';')}">${body}</div>`;
     }
     if (b.type === 'table') {
       const cols = b.columns || [];
       const rows = g.apps.map(({ s, a }) => cols.map(c => this.cellValue(c.field, s, a, g)));
       while (rows.length < (n(b.minRows) || 0)) rows.push(cols.map(() => '\u00a0'));
-      const th = cols.map(c => `<th style="${n(c.width) ? `width:${n(c.width)}mm;` : ''}text-align:${b.headerAlign || 'center'}">${esc(c.header)}</th>`).join('');
-      const body = rows.map(r => `<tr>${r.map((v, i) => `<td style="text-align:${cols[i].align || 'left'}">${esc(v)}</td>`).join('')}</tr>`).join('');
-      return `<table class="doc-tbl" style="margin:${n(b.before) ?? 2}mm 0 ${n(b.after) ?? 4}mm"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
+      const rh = n(b.rowHeight) ? `height:${n(b.rowHeight)}mm;padding-top:0;padding-bottom:0;line-height:1.2;` : '';
+      const bs = n(b.bodySize) ? `font-size:${n(b.bodySize)}pt;` : '';
+      const th = cols.map(c => `<th style="${rh}${n(c.width) ? `width:${n(c.width)}mm;` : ''}text-align:${b.headerAlign || 'center'}">${esc(c.header)}</th>`).join('');
+      const body = rows.map(r => `<tr>${r.map((v, i) => `<td style="${rh}${bs}text-align:${cols[i].align || 'left'}">${esc(v)}</td>`).join('')}</tr>`).join('');
+      return `<table class="doc-tbl ${b.look || ''}" style="${this.tableBox(b)};margin-top:${n(b.before) ?? 2}mm;margin-bottom:${n(b.after) ?? 4}mm${b.look ? ';table-layout:fixed' : ''}"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
     }
     if (b.type === 'form') {
-      const rows = (b.rows || []).map(r => `<tr><th style="width:${n(b.labelWidth) ?? 38}mm">${this.html(r.label, ctx)}</th><td style="height:${n(r.height) ?? 16}mm"></td></tr>`).join('');
-      return `<table class="doc-tbl" style="margin:${n(b.before) ?? 4}mm 0 ${n(b.after) ?? 0}mm"><tbody>${rows}</tbody></table>`;
+      const al = b.labelAlign === 'center' ? 'text-align:center;vertical-align:middle;' : '';
+      const rows = (b.rows || []).map(r => `<tr><th style="${al}width:${n(b.labelWidth) ?? 38}mm">${this.html(r.label, ctx)}</th><td style="height:${n(r.height) ?? 16}mm"></td></tr>`).join('');
+      return `<table class="doc-tbl" style="${this.tableBox(b)};margin-top:${n(b.before) ?? 4}mm;margin-bottom:${n(b.after) ?? 0}mm"><tbody>${rows}</tbody></table>`;
     }
     return '';
   },
@@ -128,8 +158,10 @@ const Docs = {
     const L = this.layout(key);
     const st = L.style;
     const ctx = this.context(key, g);
-    const font = (DOC_FONTS[st.font] || DOC_FONTS.mincho)[1];
-    return `<div class="p-page doc" style="font-family:${font};font-size:${num(st.size) || 11}pt;line-height:${num(st.line) || 1.9}">${(L.blocks || []).map(b => this.blockHtml(b, ctx, g)).join('')}</div>`;
+    // フォント名の " が style="..." を途切れさせ、文字の大きさ・行の高さが効かなかったので ' に直す
+    const font = (DOC_FONTS[st.font] || DOC_FONTS.mincho)[1].replace(/"/g, "'");
+    const base = num(st.size) || 11;
+    return `<div class="p-page doc" style="font-family:${font};font-size:${base}pt;line-height:${num(st.line) || 1.9}">${(L.blocks || []).map(b => this.blockHtml(b, ctx, g, base)).join('')}</div>`;
   },
 
   /** 画面のプレビュー・試し刷り用の見本データ（実在の人物ではない） */
@@ -157,37 +189,48 @@ const Docs = {
   },
 
   /* ---------- 宛名ラベル ---------- */
+  /** 職場見学の宛名ラベル。各行を上端からの距離（mm）で置き、住所・事業所名は枠の幅に収まるよう縮める（現行 PDF の配置） */
   labelHtml(g) {
     const d = Derive.sendTo(g.job);
     const L = this.layout('label');
     const f = v => num(v) ?? 0;
-    return `<div class="lb" style="padding:${f(L.padTop)}mm ${f(L.padSide)}mm 0;text-align:${L.align || 'left'}">${L.showZip !== false ? `<div style="font-size:${f(L.zipSize)}pt">${d.zip ? '〒' + esc(d.zip) : '&nbsp;'}</div>` : ''}
-      <div style="font-size:${f(L.addrSize)}pt;margin-bottom:${f(L.gap)}mm">${esc(d.address)}</div>
-      <div style="font-size:${f(L.coSize)}pt;${L.boldCompany !== false ? 'font-weight:700' : ''}">${esc(g.job.company)}</div>
-      <div style="font-size:${f(L.toSize)}pt;margin-top:1mm">${this.addressee(d)}</div></div>`;
+    const side = f(L.padSide), ind = f(L.indent), top = f(L.padTop);
+    const fit = (txt, size, mm) => (f(mm) > 0 ? this.fitSize(txt, f(size), f(mm)) : f(size));
+    const row = (t, left, size, body, css = '') => `<div style="position:absolute;left:${left}mm;top:${t}mm;font-size:${size}pt;line-height:1;white-space:nowrap;${css}">${body}</div>`;
+    const to = this.addressee(d);
+    return `<div class="lb" style="position:relative;padding:0">
+      ${L.showZip !== false && d.zip ? row(top, side + ind, f(L.zipSize), '〒' + esc(d.zip)) : ''}
+      ${row(top + f(L.addrTop), side + ind, fit(d.address, L.addrSize, L.fitAddr), esc(d.address))}
+      ${row(top + f(L.coTop), side, fit(g.job.company, L.coSize, L.fitCo), esc(g.job.company), L.boldCompany ? 'font-weight:700' : '')}
+      ${row(top + f(L.toTop), side + ind, f(L.toSize), to)}</div>`;
   },
-  /** レターパックプラス用の宛名ラベル（旧03「【応募書類ラベル】レターパックプラス」の配置。105×148.5mm の1片に、宛先・差出人・「就職応募書類在中」） */
+  /** レターパックプラス用の宛名ラベル（現行の PDF の配置。1片 100.3×140.8mm に、宛先・差出人・「就職応募書類在中」）。位置は片の左上からの距離（mm） */
   letterLabelHtml(g) {
     const d = Derive.sendTo(g.job), sc = this.school();
-    const W = 105, H = 148.5, x0 = 19.6, w = 78.4;
-    const box = (top, h, size, body, css = '') => `<div style="position:absolute;left:${x0 / W * 100}%;width:${w / W * 100}%;top:${top / H * 100}%;height:${h / H * 100}%;overflow:hidden;font-size:${size}pt;line-height:1.3;${css}">${body}</div>`;
     const co = String(g.job.company || '');
     const to = [d.dept, d.contact].filter(Boolean).join('　') || '人事採用担当者';
     const t = String(sc.tel || '').split('-');
-    const schoolTel = t.length === 3 ? `${esc(t[0])}（${esc(t[1])}）${esc(t[2])}` : esc(sc.tel || '');
-    return `<div class="lb" style="position:relative;padding:0">
-      ${box(0, 9.5, 14, d.zip ? '〒' + esc(d.zip) : '&nbsp;', 'display:flex;align-items:center')}
-      ${box(9.5, 28.6, 13, esc(d.address))}
-      ${box(38.1, 9.5, co.length > 16 ? 12 : 16, esc(co), 'font-weight:700;display:flex;align-items:center;line-height:1.15')}
-      ${box(47.6, 9.6, 15, `<span>${esc(to)}</span><span style="position:absolute;right:0">様</span>`, 'display:flex;align-items:center;position:absolute')}
-      ${box(57.2, 9.5, 11, `TEL（　　　）　　　（　　　${g.job.tel ? '）　' + esc(g.job.tel) : '）'}`, 'display:flex;align-items:center')}
-      ${box(66.7, 7.2, 10, '〒' + esc(sc.zip), 'display:flex;align-items:center')}
-      ${box(73.9, 21.6, 10.5, esc(sc.address))}
-      ${box(95.5, 7.2, 11, esc(sc.name), 'display:flex;align-items:center')}
-      ${box(102.7, 7.2, 11, esc(sc.dept || '進路指導部'), 'display:flex;align-items:center')}
-      ${box(109.9, 9.5, 11, 'TEL　' + schoolTel, 'display:flex;align-items:center')}
-      ${box(127, 14, 18, '就職応募書類在中', 'display:flex;align-items:center;justify-content:center;font-weight:700;border:0.4mm solid #000;box-sizing:border-box')}
-    </div>`;
+    const at = (top, left, size, body, css = '') => `<div style="position:absolute;top:${top}mm;left:${left}mm;font-size:${size}pt;line-height:1;white-space:nowrap;${css}">${body}</div>`;
+    const wrap = (top, left, w, h, size, body) => `<div style="position:absolute;top:${top}mm;left:${left}mm;width:${w}mm;height:${h}mm;overflow:hidden;font-size:${size}pt;line-height:1.25">${body}</div>`;
+    const line = top => `<div style="position:absolute;left:0;right:0;top:${top}mm;height:0.6mm;background:#000"></div>`;
+    const X = 19.8, W = 78.4;
+    return `<div class="lb" style="position:relative;padding:0;font-family:var(--font)">
+      ${at(2.6, X, 10.3, d.zip ? '〒' + esc(d.zip) : '&nbsp;')}
+      ${wrap(11.4, X, W, 26, 11, esc(d.address))}
+      ${at(39, X, this.fitSize(co, 13.2, W), esc(co))}
+      <div style="position:absolute;top:46.9mm;left:${X}mm;width:${W - 8.7}mm;text-align:right;white-space:nowrap;font-size:${this.fitSize(to, 13.2, W - 8.7)}pt;line-height:1">${esc(to)}</div>
+      ${at(47.4, 93.8, 10.3, '様')}
+      ${at(56.1, 47.5, 13.2, '(')}${at(56.1, 68.8, 13.2, ')')}
+      ${g.job.tel ? `<div style="position:absolute;top:57mm;left:49.2mm;width:19.5mm;text-align:center;font-size:8pt;line-height:1">${esc(g.job.tel)}</div>` : ''}
+      ${line(62.5)}
+      ${at(64.3, X, 10.3, sc.zip ? '〒' + esc(sc.zip) : '&nbsp;')}
+      ${wrap(71.2, X, W, 19, 10.3, esc(sc.address))}
+      ${at(91.3, 20, 13.2, esc(sc.name))}
+      ${at(98.1, 20, 13.2, esc(sc.dept || '進路指導部'))}
+      ${t.length === 3 ? `${at(106.5, 32.8, 10.3, esc(t[0]))}${at(106.2, 47.5, 13.2, '(')}${at(106.4, 55.2, 11.3, esc(t[1]))}${at(106.2, 68.8, 13.2, ')')}${at(106.4, 77.4, 11.3, esc(t[2]))}` : at(106.4, 32.8, 11.3, 'TEL　' + esc(sc.tel || ''))}
+      ${line(112.7)}
+      <div style="position:absolute;top:124.8mm;left:${X}mm;width:${W}mm;text-align:center;white-space:nowrap;font-size:26.3pt;line-height:1">就職応募書類在中</div>
+      <div style="position:absolute;top:0;bottom:0;right:0;width:0.6mm;background:#000"></div></div>`;
   },
   /** groups → 宛名ラベル。start＝最初に使うラベルの位置（使いかけの用紙用）。copies＝1件あたりの枚数 */
   printLabels(groups, layoutKey, start = 1, copies = 1) {
@@ -198,9 +241,12 @@ const Docs = {
     groups.forEach(g => { for (let i = 0; i < copies; i++) cells.push(layoutKey === 'envelope' ? this.letterLabelHtml(g) : this.labelHtml(g)); });
     const pages = [];
     for (let i = 0; i < cells.length; i += per) pages.push(cells.slice(i, i + per));
-    const html = pages.map(p => `<div class="p-page lb-sheet" style="
-      padding:${L.top}mm ${L.left}mm 0 ${L.left}mm;
-      grid-template-columns:repeat(${L.cols}, ${L.w}mm); grid-template-rows:repeat(${L.rows}, ${L.h}mm);
+    // 段ごとの高さ（rowH：カンマ区切り）。空欄・段数が合わないときは「高さ」を全段に使う
+    const hs = String(L.rowH || '').split(/[,、\s]+/).map(Number).filter(v => v > 0);
+    const rows = hs.length === L.rows ? hs.map(v => v + 'mm').join(' ') : `repeat(${L.rows}, ${L.h}mm)`;
+    const html = pages.map(p => `<div class="p-page lb-sheet ${layoutKey === 'envelope' ? 'lb-env' : ''}" style="
+      padding:${L.top}mm 0 0 ${L.left}mm;
+      grid-template-columns:repeat(${L.cols}, ${L.w}mm); grid-template-rows:${rows};
       column-gap:${L.gapX}mm; row-gap:${L.gapY}mm;">${p.join('')}</div>`).join('');
     Print.open({ title: `宛名ラベル_${groups.length}社`, html, orientation: 'portrait', margin: '0' });
   },

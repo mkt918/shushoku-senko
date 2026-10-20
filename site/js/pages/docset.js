@@ -229,7 +229,10 @@ const DocSet = {
         <label class="ds-f ds-ck"><input type="checkbox" data-p="showZip" data-t="bool" ${L.showZip !== false ? 'checked' : ''}><span>郵便番号を入れる</span></label>
         <label class="ds-f ds-ck"><input type="checkbox" data-p="boldCompany" data-t="bool" ${L.boldCompany !== false ? 'checked' : ''}><span>事業所名を太字にする</span></label></div>
       <div class="ds-row">${f('郵便番号の大きさ(pt)', 'zipSize', L.zipSize)}${f('住所の大きさ(pt)', 'addrSize', L.addrSize)}${f('事業所名の大きさ(pt)', 'coSize', L.coSize)}${f('宛先の大きさ(pt)', 'toSize', L.toSize)}</div>
-      <div class="ds-row">${f('上の余白(mm)', 'padTop', L.padTop)}${f('左右の余白(mm)', 'padSide', L.padSide)}${f('住所と事業所名の間(mm)', 'gap', L.gap)}</div></section>`;
+      <div class="ds-row">${f('上の余白(mm)', 'padTop', L.padTop)}${f('左の余白(mm)', 'padSide', L.padSide)}${f('字下げ(mm)', 'indent', L.indent)}</div>
+      <div class="ds-row">${f('住所の位置(mm)', 'addrTop', L.addrTop)}${f('事業所名の位置(mm)', 'coTop', L.coTop)}${f('宛先の位置(mm)', 'toTop', L.toTop)}</div>
+      <div class="ds-row">${f('住所を収める幅(mm)', 'fitAddr', L.fitAddr)}${f('事業所名を収める幅(mm)', 'fitCo', L.fitCo)}</div>
+      <p class="sub">位置は、郵便番号の行の上端からの距離です。住所・事業所名は、収める幅より長いとき、文字を縮めて1行にします（0＝縮めない）。</p></section>`;
   },
 
   /* ---------- 操作 ---------- */

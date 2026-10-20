@@ -120,12 +120,13 @@ const Settings = {
 
       <section class="card">
         <h2>宛名ラベル用紙</h2>
-        <p class="sub">職場見学の宛名の初期値はエーワン 31514（A4・10面・1片 91×55mm・四辺余白付）、応募書類（レターパック）の宛名の初期値は A4 4面（2列×2段・105×148.5mm・余白なし）です。ラベルの寸法が違うときを使うときは、面数と寸法（mm）を入れ替えてください。</p>
+        <p class="sub">初期値は、現行の様式（PDF）に合わせてあります。職場見学の宛名は A4 12面（2列×6段・幅 87.2mm・段の高さは下の「段ごとの高さ」）、応募書類（レターパック）の宛名は A4 4面（2列×2段・100.3×140.8mm・上 7.6mm・左 4.7mm）です。ラベルの寸法が違うときは、面数と寸法（mm）を入れ替えてください。</p>
         ${['visit', 'envelope'].map(k => `<h3>${esc(s.labels[k].name)}</h3>
         <div class="grid grid-labels">
           ${[['cols', '列数'], ['rows', '段数'], ['w', '幅'], ['h', '高さ'], ['top', '上余白'], ['left', '左余白'], ['gapX', '列の間隔'], ['gapY', '段の間隔']]
             .map(([f, l]) => `<div class="field narrow"><label class="label">${l}</label>${inp(`labels.${k}.${f}`, { type: 'number', cls: 'w-num' })}</div>`).join('')}
-        </div>`).join('')}
+        </div>
+        <div class="field"><label class="label">段ごとの高さ（mm・カンマ区切り。段数ぶん。空欄なら「高さ」をすべての段に使う）</label>${inp(`labels.${k}.rowH`, { ph: '例：39.2,39.2,39.2,43.5,43.5,43.5' })}</div>`).join('')}
       </section>
 
       <section class="card">

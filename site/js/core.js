@@ -112,58 +112,66 @@ function defaultDocLayout() {
   const para = (t, o = {}) => text(t, Object.assign({ align: 'justify', indent: 1, after: 3 }, o));
   const title = t => text(t, { align: 'center', size: 16, bold: true, spacing: 0.3, before: 8, after: 6 });
   return {
+    // 2026-10-20：利用者が示した現行の PDF（送付状・依頼文・確認書・宛名ラベル）の寸法に合わせた既定。
+    //   縦の位置は「行の高さ（style.line）× 文字の大きさ」と、各ブロックの height / after で再現している。
     cover: {
-      name: '応募書類の送付状', style: style(), blocks: [
-        text('{日付}', { align: 'right', after: 6 }),
-        text('{会社名}\n{宛先}', { size: 12, after: 5 }),
-        text('{学校名}長', { align: 'right' }),
-        title('就職応募書類の送付について'),
-        para('{時候の挨拶}、ますます御清栄のこととお慶び申し上げます。'),
-        para('日頃は本校生徒への求職活動につきまして、格別の御配慮を賜り厚く御礼申し上げます。'),
-        para('さて、令和{卒業年}年３月に本校卒業予定の就職希望者のうち、下記の生徒が希望しております。'),
-        para('つきましては、下記の生徒を推薦させていただきますとともに、統一応募書類を送付いたします。御査収の上、御高配を賜りますようお願い申し上げます。'),
-        para('なお、就職試験に関する連絡や採用結果に関する書類をお送りいただきます場合は、進路指導部宛にお願いいたします。'),
-        text('記', { align: 'center', before: 4, after: 4 }),
-        { type: 'table', headerAlign: 'center', minRows: 0, before: 2, after: 4, columns: [
-          { header: '学科', field: 'dept', width: 42, align: 'center' },
-          { header: '応募者氏名', field: 'name', width: 42, align: 'center' },
-          { header: '応募職種', field: 'job', width: 0, align: 'center' }] },
-        text('〔連絡先〕', { align: 'right', bold: true, before: 10, size: 10.5 }),
-        text('{学校名}\n進路指導主事\n〒{郵便番号}\n{住所}\nＴＥＬ　{電話}\nＦＡＸ　{FAX}', { align: 'right', size: 10.5 }),
+      name: '応募書類の送付状', style: { font: 'mincho', size: 12, line: 1.81, margin: [18.4, 14, 18, 23.3] }, blocks: [
+        text('{日付}', { align: 'right', right: 7.7, after: 4.6 }),
+        text('{会社名}', { height: 8.2, fit: 99.7 }),
+        text('{宛先}', { height: 8.2, left: 7.2, after: 2.4 }),
+        text('{学校名}長', { align: 'right', right: 14.9, size: 11.5, height: 6.4 }),
+        text('{校長名}', { align: 'right', right: 10.67, spacing: 1, height: 6.4, after: 7.4 }),
+        text('就職応募書類の送付について', { align: 'center', size: 14, after: 5.4 }),
+        para('{時候の挨拶}、ますます御清栄のこととお慶び申し上げます。', { indent: 1.7, right: 14.7, after: 0 }),
+        para('日頃は本校生徒への求職活動につきまして、格別の御配慮を賜り厚く御礼申し上げます。', { indent: 1.7, right: 14.7, after: 0 }),
+        para('さて、令和{卒業年}年３月に本校卒業予定の就職希望者のうち、下記の生徒が希望しております。', { indent: 1.7, right: 14.7, after: 0 }),
+        para('つきましては、下記の生徒を推薦させていただきますとともに、統一応募書類を送付いたします。御査収の上、御高配を賜りますようお願い申し上げます。', { indent: 1.7, right: 14.7, after: 0 }),
+        para('なお、就職試験に関する連絡や採用結果に関する書類をお送りいただきます場合は、進路指導部宛にお願いいたします。', { indent: 1.7, right: 14.7, after: 6.5 }),
+        text('記', { align: 'center', after: 3.3 }),
+        { type: 'table', look: 'plain', headerAlign: 'center', minRows: 5, rowHeight: 10.5, bodySize: 11, before: 0, after: 8.2, columns: [
+          { header: '〔学科〕', field: 'dept', width: 49.9, align: 'center' },
+          { header: '〔応募者氏名〕', field: 'name', width: 43.6, align: 'center' },
+          { header: '〔応募職種〕', field: 'job', width: 0, align: 'center' }] },
+        text('〔連絡先〕\n進路指導主事　{主事名}\n〒{郵便番号}\n{住所}\nＴＥＬ　{電話}\nＦＡＸ　{FAX}', { left: 86.9, lh: 1.1 }),
       ],
     },
     visitLetter: {
-      name: '職場見学のお願い（依頼文）', style: style(), blocks: [
-        text('{日付}', { align: 'right', after: 6 }),
-        text('{会社名}\n人事採用担当者　様', { size: 12, after: 5 }),
-        text('{学校名}\n校長　{校長名}\n(連絡先電話番号)\n{電話}\n(連絡先教諭名)\n進路指導主事　{主事名}', { align: 'right', after: 8 }),
-        title('職場見学のお願い'),
-        para('この度、別紙の生徒が見学を希望していますので、受入れ方よろしくお願いします。'),
-        para('また、職場見学をその後の就職指導に役立てるため、職場見学確認書に人事担当者の署名をいただいて帰るよう生徒に指導しています。誠に恐縮ですが、別紙の確認書にご記入の上、生徒にお渡しくださるようお願いいたします。'),
-        text('《お願い》', { bold: true, before: 8, after: 1 }),
-        para('職場見学は、生徒が応募先を決定するのに先立って、実際の仕事や職場への理解を深めるために行うものです。そのため、職場見学の受入れに当たっては、採用選考とならないよう、次についてご留意いただくようお願いします。', { indent: 0, left: 8 }),
-        para('○　応募書類をはじめとして生徒に書類の提出を求めないでください。', { indent: -1, left: 14 }),
-        para('○　採用選考に直接つながる質問をしたり、内定と受け取られるような話をしたりしないようにしてください。', { indent: -1, left: 14 }),
+      name: '職場見学のお願い（依頼文）', style: { font: 'mincho', size: 12, line: 1.44, margin: [20, 19.8, 18, 20] }, blocks: [
+        text('{日付}', { align: 'right', after: 6.05 }),
+        text('{会社名}'),
+        text('人事採用担当者　様', { left: 4, after: 6.1 }),
+        text('{学校名}', { left: 121.4 }),
+        text('校長　{校長名}', { align: 'right' }),
+        text('(連絡先電話番号)\n{電話}\n(連絡先教諭名)\n進路指導主事　{主事名}', { left: 121.4, after: 7.55 }),
+        text('職場見学のお願い', { align: 'center', size: 18, bold: true, after: 7.65 }),
+        para('この度、別紙の生徒が見学を希望していますので、受入れ方よろしくお願いします。', { indent: 0.95, after: 0 }),
+        para('また、職場見学をその後の就職指導に役立てるため、職場見学確認書に人事担当者の署名をいただいて帰るよう生徒に指導しています。誠に恐縮ですが、別紙の確認書にご記入の上、生徒にお渡しくださるようお願いいたします。', { indent: 0.95, after: 18.3 }),
+        text('《お願い》'),
+        para('職場見学は、生徒が応募先を決定するのに先立って、実際の仕事や職場への理解を深めるために行うものです。', { left: 4, right: 12.5, indent: 0.97, after: 0 }),
+        para('そのため、職場見学の受入れに当たっては、採用選考とならないよう、次についてご留意いただくようお願いします。', { left: 4, right: 12.5, indent: 0.97, after: 9.4 }),
+        text('○　応募書類をはじめとして生徒に書類の提出を求めないでください。\n○　採用選考に直接つながる質問をしたり、内定と受け取られるような話をしたりしないようにしてください。', { align: 'left', left: 7.9, right: 12.9, box: true, hang: 1 }),
       ],
     },
     visitConfirm: {
-      name: '職場見学確認書', style: style(), blocks: [
-        text('会社名：{会社名}', { align: 'right', after: 2 }),
-        title('職場見学確認書'),
-        text('見学日　{見学日}', { align: 'center', after: 2 }),
-        text('学校名　{学校名}', { align: 'right', after: 2 }),
-        { type: 'table', headerAlign: 'center', minRows: 3, before: 2, after: 4, columns: [
-          { header: '生徒氏名', field: 'name', width: 0, align: 'center' },
-          { header: '希望職種', field: 'job', width: 0, align: 'center' },
-          { header: '求人番号', field: 'jobNumber', width: 0, align: 'center' },
-          { header: '参加', field: 'blank', width: 16, align: 'center' }] },
-        text('◇　上記生徒のうち、参加欄に「○」を付けた生徒は、確かに当社を見学しました。', { align: 'justify', after: 1 }),
-        text('（注）　当日訪問しました生徒の参加欄に「○」を記入してください。\n　　　　特に、学校へ伝える事項がある場合は「学校への連絡」欄に記入してください。', { size: 9, after: 2 }),
-        { type: 'form', labelWidth: 38, before: 8, after: 0, rows: [
-          { label: '担当者（役職名）\nご氏名', height: 16 }, { label: '学校への連絡', height: 34 }] },
+      name: '職場見学確認書', style: { font: 'mincho', size: 12, line: 1.44, margin: [20, 19.8, 18, 20] }, blocks: [
+        text('会社名：{会社名}', { align: 'right', after: 7.6 }),
+        text('職場見学確認書', { align: 'center', size: 18, bold: true, after: 7.6 }),
+        text('見学日　{見学日}', { ul: 64.8 }),
+        text('学校名　{学校名}', { ul: 64.8, after: 5.8 }),
+        { type: 'table', look: 'dot', headerAlign: 'center', minRows: 5, rowHeight: 9.3, bodySize: 11, before: 0, after: 18.2, left: 8.2, right: 8.5, columns: [
+          { header: '生徒氏名', field: 'name', width: 45.7, align: 'center' },
+          { header: '希望職種', field: 'job', width: 45.7, align: 'center' },
+          { header: '求人番号', field: 'jobNumber', width: 45.7, align: 'center' },
+          { header: '参加', field: 'blank', width: 16.4, align: 'center' }] },
+        text('◇　上記生徒のうち、参加欄に「○」を付けた生徒は、確かに当社を見学しました。', { align: 'left', after: 6.1 }),
+        { type: 'form', labelWidth: 40.5, labelAlign: 'center', before: 0, after: 6, right: 0.6, rows: [
+          { label: '担当者（役職名）\nご氏名', height: 24.6 }, { label: '学校への連絡', height: 24.6 }] },
+        text('（注）　当日訪問しました生徒の参加欄に「○」を記入してください。\n特に、学校へ伝える事項がある場合は「学校への連絡」欄に記入してください。', { indent: -3.83 }),
       ],
     },
-    label: { name: '宛名ラベル', zipSize: 11, addrSize: 10.5, coSize: 13, toSize: 11, align: 'left', padTop: 4, padSide: 5, gap: 2.5, boldCompany: true, showZip: true },
+    // 宛名ラベル（職場見学）：PDF の位置に合わせた。各行は上端からの距離（mm）で置き、長い文字は枠の幅に収まるよう縮める
+    label: { name: '宛名ラベル', zipSize: 10, addrSize: 10, coSize: 10, toSize: 10, align: 'left', padTop: 2, padSide: 0, indent: 4.4,
+      addrTop: 4.4, coTop: 13.5, toTop: 18.2, fitAddr: 59.5, fitCo: 67, boldCompany: false, showZip: true },
   };
 }
 
@@ -243,10 +251,13 @@ function defaultSettings() {
       councilPer: 0.05,
       councilMax: 0.1,
     },
-    // 宛名ラベル用紙（職場見学：エーワン 31514＝A4 10面 91×55mm・四辺余白付 ／ 応募書類（レターパック）：A4 4面 105×148.5mm・余白なし）
+    // 宛名ラベル用紙（2026-10-20：利用者の現行 PDF に合わせた。
+    //   職場見学：A4 12面（2列×6段・87.2mm 幅。段の高さは PDF のとおり 39.2×3 段＋43.5×3 段）
+    //   応募書類（レターパック）：A4 4面（2列×2段・100.3×140.8mm・上7.6 左4.7）
+    //   rowH＝段ごとの高さ（mm・カンマ区切り）。空欄なら「高さ」を全段に使う）
     labels: {
-      visit: { name: '職場見学の宛名', cols: 2, rows: 5, w: 91, h: 55, top: 11, left: 14, gapX: 0, gapY: 0 },
-      envelope: { name: '応募書類の宛名（レターパック）', cols: 2, rows: 2, w: 105, h: 148.5, top: 0, left: 0, gapX: 0, gapY: 0 },
+      visit: { name: '職場見学の宛名', cols: 2, rows: 6, w: 87.2, h: 40.9, rowH: '39.2,39.2,39.2,43.5,43.5,43.5', top: 25.8, left: 27.3, gapX: 0, gapY: 0 },
+      envelope: { name: '応募書類の宛名（レターパック）', cols: 2, rows: 2, w: 100.3, h: 140.8, rowH: '', top: 7.6, left: 4.7, gapX: 0, gapY: 0 },
     },
     // 帳票の日付
     docs: { visitLetterDate: '', sendDate: '' },
@@ -289,6 +300,11 @@ function normalizeData(d) {
   const defS = defaultSettings();
   out.settings.labels = { visit: Object.assign({}, defS.labels.visit, ((d.settings || {}).labels || {}).visit),
     envelope: Object.assign({}, defS.labels.envelope, ((d.settings || {}).labels || {}).envelope) };
+  // 以前の既定（エーワン 31514／A4 4面）のまま使っていたデータは、新しい既定（現行 PDF の寸法）に置き換える
+  const sameBox = (a, b) => ['cols', 'rows', 'w', 'h', 'top', 'left', 'gapX', 'gapY'].every(k => Number(a[k]) === b[k]);
+  const lab = out.settings.labels;
+  if (sameBox(lab.visit, { cols: 2, rows: 5, w: 91, h: 55, top: 11, left: 14, gapX: 0, gapY: 0 })) lab.visit = Object.assign({}, defS.labels.visit, { name: lab.visit.name });
+  if (sameBox(lab.envelope, { cols: 2, rows: 2, w: 105, h: 148.5, top: 0, left: 0, gapX: 0, gapY: 0 })) lab.envelope = Object.assign({}, defS.labels.envelope, { name: lab.envelope.name });
   out.settings.docs = Object.assign({}, defS.docs, (d.settings || {}).docs || {});
   out.settings.docLayout = Object.assign({}, defS.docLayout, (d.settings || {}).docLayout || {});
   out.settings.reports = Object.assign({}, defS.reports, (d.settings || {}).reports || {});

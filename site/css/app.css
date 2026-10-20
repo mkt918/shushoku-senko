@@ -407,6 +407,12 @@ td.slot.is-over { background: var(--danger-soft); box-shadow: inset 3px 0 0 var(
 .doc-tbl { border-collapse: collapse; width: 100%; margin: 4mm 0; }
 .doc-tbl th, .doc-tbl td { border: 0.7pt solid #000; padding: 1.5mm 2.5mm; text-align: left; font-weight: 400; line-height: 1.6; }
 .doc-tbl thead th { text-align: center; }
+.lb-env .lb:nth-child(-n+2) { border-bottom: 0.6mm solid #000; }
+.doc-tbl.plain th, .doc-tbl.plain td { border: 0; padding-left: 1mm; padding-right: 1mm; }
+.doc-tbl.dot th, .doc-tbl.dot td { border: 0.2mm solid #000; padding-left: 1mm; padding-right: 1mm; }
+.doc-tbl.dot tbody td { border-top: 0.2mm dotted #000; border-bottom: 0.2mm dotted #000; }
+.doc-tbl.dot tbody tr:last-child td { border-bottom: 0.2mm solid #000; }
+.doc-tbl.dot thead th { border-bottom: 0.2mm solid #000; }
 .doc-sign { margin-top: 8mm; }
 .doc-contact { margin: 10mm 0 0 96mm; line-height: 1.6; font-size: 10.5pt; }
 

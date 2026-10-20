@@ -79,7 +79,7 @@
 - `js/pages/manual.js`：使い方（`DEFAULT_TASKS` と連動）
 - `js/pages/second.js`：2次応募（メニュー7。不採用・辞退になった就職希望者を就職順位順に自動で並べ、2次以降の応募先・試験日・合否を続けて記録する。統計は生徒ごとに最新の応募先（`Apps.current`）で数えるので、1次と2次以降は自動で合算される）。メニュー番号は 8報告 9進路決定 10年度末 11設定 12帳票の設定 13使い方
 - 設定：宛名ラベル用紙（`settings.labels.visit / envelope`）、年度更新（`Settings.nextYear`）。
-- **宛名ラベル**：A-one 31514（A4・10面・2列×5段・91×55mm・四辺余白付。余白は 上下11mm・左右14mm、間隔0）を初期値にした。レターパック用（`envelope`）は A4 4面（2列×2段・105×148.5mm・余白なし、2026-10-15 にユーザーが「A4に4面」と指定。型番・実寸は未確認）。別の用紙なら設定で変える。
+- **宛名ラベル**（2026-10-20 に、ユーザーの現行 PDF の寸法に合わせた）：職場見学（`visit`）は A4 12面（2列×6段・幅87.2mm・上25.8mm・左27.3mm。段の高さは PDF のとおり `rowH`＝39.2×3＋43.5×3）、レターパック用（`envelope`）は A4 4面（2列×2段・100.3×140.8mm・上7.6mm・左4.7mm）。以前の既定（A-one 31514／105×148.5mm）のまま使っていたデータは、`normalizeData` が新しい既定に置き換える。各行の位置は片の左上（職場見学は郵便番号の行）からの距離（mm）で書いてあり、住所・事業所名は枠の幅に収まるよう縮める（`Docs.fitSize`）。別の用紙なら設定で変える。**未確認**：PDF の段の高さが不揃い（39.2／43.5）なのは原本のとおり。実際のシールの寸法とずれるときは、設定の「段ごとの高さ」を直す。PDF の右にある小さな連番（54〜65）は何の番号か分からず、出していない。
 
 - **Handy進路指導室の求人票CSV**：`ImportTypes.handy`（excel.js）。見出し名で列を見つける（`map`）。求人番号で照合（`jobMatch(it, true)`）、既存の求人は**空欄で上書きしない**（送付先・区分・メモを残す）。`Excel.readFile` が CSV の文字コード（UTF-8／BOM／UTF-16／Shift_JIS）を自動判別し、値を文字列のまま読む。PDF（説明資料）の14ページの項目名をもとにしており、**実物の CSV の見出しで未確認**。実物が手に入ったら `map` を合わせる。
 - **取り込みフォルダ**：`js/watch.js`（`Watch`＝フォルダのハンドルを IndexedDB に保存・新しい CSV の検出、`WatchBar`＝求人票ページ上部の帯）。File System Access API（Edge / Chrome）。取り込み済みは `data.imports`（名前|サイズ|更新日時）に記録して二重取り込みを防ぐ。権限の確認（`requestPermission`）はボタン操作の中でしか呼べない。実際のフォルダ選択ダイアログは自動テストできないため、模擬ハンドル（`name / queryPermission / requestPermission / entries()`）で検証した。**注意**：開発中のプレビューはブラウザがスクリプトをキャッシュするので、変更後は `fetch(url, {cache:'reload'})` してから再読み込みする。
@@ -108,11 +108,12 @@
 ## 帳票のレイアウト（設定で直せる）
 
 - 依頼文（`visitLetter`）・確認書（`visitConfirm`）・送付状（`cover`）・宛名ラベル（`label`）は、**コードに文面を書かず、設定（`settings.docLayout[key]`）から組み立てる**。`null` のあいだは `defaultDocLayout()`（core.js）の既定を使う。
-- 文書＝`{ name, style: { font, size, line, margin:[上,右,下,左] }, blocks: [...] }`。ブロックは `text`（text, align, size, bold, indent, left, before, after, spacing）／`table`（columns: [{header, field, width, align}], headerAlign, minRows）／`form`（rows: [{label, height}], labelWidth）／`space`（height）。
+- 文書＝`{ name, style: { font, size, line, margin:[上,右,下,左] }, blocks: [...] }`。ブロックは `text`（text, align, size, bold, indent, left, before, after, spacing。2026-10-20 追加：`right`＝右の余白mm、`lh`＝行の高さ（倍）、`height`＝決まった高さの欄の真ん中に1行を置く、`fit`＝この幅mmに収まるよう縮める、`box`＝枠、`hang`＝行ごとのぶら下げ（字）、`ul`＝下線の幅mm）／`table`（columns: [{header, field, width, align}], headerAlign, minRows。追加：`look`＝plain（罫線なし）／dot（横罫線が点線）、`rowHeight`、`bodySize`、`left`・`right`）／`form`（rows: [{label, height}], labelWidth。追加：`labelAlign`、`left`・`right`）／`space`（height）。
 - 差し込み：文中の `{会社名}` など（`DOC_PLACEHOLDERS`）を `Docs.context()` の値に置き換える。**言葉を足すときは、`Docs.context` と `DOC_PLACEHOLDERS` の両方**に足す。表の中身の種類は `DOC_FIELDS` と `Docs.cellValue`。
 - 描画は `Docs.renderDoc(key, g)`、余白は `Docs.margin(key)`（`Print.open` の margin）。見本のデータは `Docs.sampleGroup()`（実在しない）。
 - 編集画面は `js/pages/docset.js`（`DocSet`）。入力欄は `data-p="blocks.3.align"` のようなパスで `working` に書き込み、`save()` で settings に保存し、見本を描き直す。**入力の受け付け（`bindForm`）は画面を作るときに1回だけ付ける**（描き直しのたびに付けると、ボタンが二重に動く）。
-- 既定の見た目（ユーザー指定）：送付状の表の見出しは「学科／応募者氏名／応募職種」（〔 〕なし）、表の中身は中央揃え、連絡先は右揃え。依頼文の差出人（学校・校長・連絡先）も右揃え。確認書の表も中央揃え。
+- 既定の見た目（2026-10-20 に、ユーザーの現行 PDF〔送付状・依頼文・確認書〕の位置・大きさ・行の高さに合わせた。縦の位置は PDF と 0.3mm 以内で一致することを確かめた）：送付状は 12pt・行の高さ1.81・左23.3mm、表の見出しは「〔学科〕／〔応募者氏名〕／〔応募職種〕」（〔 〕あり・罫線なし）、連絡先は左揃えで右半分（左86.9mm）、校長名は字間をあけて右寄せ。依頼文・確認書は 12pt・行の高さ1.44・余白 上20 右19.8 左20、確認書の表は横罫線が点線。**以前の「〔 〕なし・右揃え」という指定は、この PDF で置き換えた。** 保存済みの設定（`docLayout` が null でないもの）は変わらない。
+- **直したバグ**：`renderDoc` の style にフォント名の `"` が入り、`style="…"` が途中で切れて、文字の大きさ・行の高さの設定が一度も効いていなかった（`'` に直した）。
 - ほかの帳票（一覧表・分担表・座席表・出欠票・様式13 など）は、まだ設定で直せない（`p-table` 系の固定レイアウト）。
 
 ## 進路希望調査（4月・Forms）
