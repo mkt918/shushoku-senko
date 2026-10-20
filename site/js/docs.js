@@ -288,21 +288,28 @@ const Docs = {
     const seats = Array(perBlock * blocks).fill(null);
     students.forEach((s, i) => { if (i < seats.length) seats[i] = s; });
     const over = students.length - seats.length;
-    const cell = s => `<td class="seat"><div class="seat-no">${s ? esc(s.no3) : ''}</div><div class="seat-nm">${s ? esc(s.name) : ''}</div></td>`;
-    let body = '';
+    // 就職先（いまの応募先の会社名）。opts.job が真のとき、席に小さく書く
+    const company = s => { const j = s && Apps.job(Apps.current(s.id)); return j ? shortCompany(j.shortName || j.company) : ''; };
+    const cell = s => `<td class="seat ${opts.job ? 'seat-j' : ''}"><div class="seat-no">${s ? esc(s.no3) : ''}</div><div class="seat-nm">${s ? esc(s.name) : ''}</div>${opts.job ? `<div class="seat-co">${s ? esc(company(s)) : ''}</div>` : ''}</td>`;
+    // 席の並び（行 × ブロック × 2席）。黒板が下のときは、教室を後ろから見た向き（180°回転）にする
+    const grid = [];
     for (let r = 0; r < rows; r++) {
-      body += '<tr>';
+      const line = [];
       for (let b = 0; b < blocks; b++) {
         const base = b * perBlock + r * 2;
-        body += cell(seats[base]) + cell(seats[base + 1]) + (b < blocks - 1 ? '<td class="seat-gap"></td>' : '');
+        line.push([seats[base], seats[base + 1]]);
       }
-      body += '</tr>';
+      grid.push(line);
     }
+    const bottom = opts.front === 'bottom';
+    const ordered = bottom ? grid.slice().reverse().map(l => l.slice().reverse().map(p => p.slice().reverse())) : grid;
+    const body = ordered.map(line => `<tr>${line.map((p, b) => cell(p[0]) + cell(p[1]) + (b < blocks - 1 ? '<td class="seat-gap"></td>' : '')).join('')}</tr>`).join('');
+    const board = '<div class="seat-front">前（黒板）</div>';
     const title = opts.title || '職場見学事前指導　座席表';
     Print.open({
       title, orientation: 'landscape', margin: '10mm',
       html: `<div class="p-page"><p class="p-title">${esc(title)}</p><p class="p-meta"><span>${esc(opts.note || '')}</span><span>${students.length} 人</span></p>
-        <div class="seat-front">前（黒板）</div><table class="seat-tbl"><tbody>${body}</tbody></table>
+        ${bottom ? '' : board}<table class="seat-tbl"><tbody>${body}</tbody></table>${bottom ? board.replace('seat-front', 'seat-front seat-front-b') : ''}
         ${over > 0 ? `<p class="p-note">※座席が ${over} 人分足りません（行数を増やしてください）。</p>` : ''}</div>`,
     });
     return over;

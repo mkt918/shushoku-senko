@@ -448,6 +448,9 @@ td.slot.is-over { background: var(--danger-soft); box-shadow: inset 3px 0 0 var(
 .seat-tbl { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
 .seat-tbl td.seat { border: 0.6pt solid #000; height: 15mm; text-align: center; vertical-align: middle; padding: 0; margin: 0; }
 .seat-tbl td.seat-gap { width: 6mm; border: 0; }
+.seat-front-b { margin-bottom: 0; margin-top: 3mm; }
+.seat-tbl td.seat-j { height: 19mm; }
+.seat-co { font-size: 7pt; line-height: 1.15; padding: 0 0.5mm; overflow: hidden; }
 .seat-no { font-size: 9pt; }
 .seat-nm { font-size: 10pt; font-weight: 700; }
 .manual-print .card { border: 0; }

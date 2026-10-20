@@ -4,7 +4,7 @@
    ============================================================ */
 
 const VisitsPage = {
-  state: { tab: 'plan', onlyOpen: true, sel: null, letter: 'both', start: 1, seatRows: 10, seatBlocks: 4, groupN: 4 },
+  state: { tab: 'plan', onlyOpen: true, sel: null, letter: 'both', start: 1, seatRows: 10, seatBlocks: 4, seatFront: 'top', seatJob: false, groupN: 4 },
 
   groups() { return Docs.jobGroups(a => a.confirmed && (!this.state.onlyOpen || !a.visitDone)); },
 
@@ -160,6 +160,8 @@ const VisitsPage = {
         <div class="toolbar">
           <label class="inline">行数 <input type="number" id="sRows" value="${st.seatRows}" min="1" max="30" style="width:64px"></label>
           <label class="inline">ブロック数 <input type="number" id="sBlocks" value="${st.seatBlocks}" min="1" max="8" style="width:64px"></label>
+          <label class="inline">黒板の位置 <select id="sFront"><option value="top" ${st.seatFront === 'top' ? 'selected' : ''}>上</option><option value="bottom" ${st.seatFront === 'bottom' ? 'selected' : ''}>下（後ろから見た向き）</option></select></label>
+          <label class="check"><input type="checkbox" id="sJob" ${st.seatJob ? 'checked' : ''}> 就職先を書く</label>
           <button class="btn btn-primary" id="sPrint">座席表を印刷</button></div>
       </section>
       <section class="card">
@@ -179,10 +181,11 @@ const VisitsPage = {
     $('#sPrint', el).addEventListener('click', () => {
       st.seatRows = Math.max(1, num($('#sRows', el).value) || 10);
       st.seatBlocks = Math.max(1, num($('#sBlocks', el).value) || 4);
+      st.seatFront = $('#sFront', el).value; st.seatJob = $('#sJob', el).checked;
       const ids = new Set(Apps.currents().map(x => x.s.id));
       const students = Store.data.students.filter(s => ids.has(s.id)).sort((a, b) => num(a.no3) - num(b.no3));
       if (!students.length) { UI.toast('応募先が確定した生徒がいません', 'warn'); return; }
-      const over = Docs.printSeating(students, { rows: st.seatRows, blocks: st.seatBlocks, note: nendoLabel(Store.data.year) });
+      const over = Docs.printSeating(students, { rows: st.seatRows, blocks: st.seatBlocks, front: st.seatFront, job: st.seatJob, note: nendoLabel(Store.data.year) });
       if (over > 0) UI.toast(`座席が ${over} 人分足りません。行数かブロック数を増やしてください`, 'warn');
     });
     $('#aPrint', el).addEventListener('click', () => Docs.printAttendance(seekers, `${nendoLabel(Store.data.year)}　職場見学　出欠・提出物確認票`));
