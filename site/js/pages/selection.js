@@ -410,7 +410,7 @@ const Selection = {
     const cell = (a, j, r) => {
       if (!a) return '';
       const nom = this.nominatedBy(stats, r, a.jobId);
-      return `<div class="${a.confirmed ? 'p-conf' : ''}"><span class="${nom.length ? 'p-strike' : ''}">${a.confirmed ? '◎ ' : ''}${esc(j ? (Derive.short(j) ? Derive.short(j) + ' ' : '') + j.company : '')}<br>`
+      return `<div class="${a.confirmed ? 'p-conf' : ''}"><span>${a.confirmed ? '◎ ' : ''}${esc(j ? (Derive.short(j) ? Derive.short(j) + ' ' : '') + j.company : '')}<br>`
         + `<span class="sm">${esc(j ? j.jobTitle || '' : '')}${j ? `　求人${Jobs.capacity(j)}人` : ''}</span></span>`
         + nom.map(n => `<br><span class="sm p-nom">${esc(n)}</span>`).join('') + `</div>`;
     };
@@ -426,7 +426,7 @@ const Selection = {
             <td class="num">${r.p.final ?? ''}</td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${r.s.mogi ?? ''}</td>
             ${Array.from({ length: PREF_N }, (_, i) => { const a = prefs[i + 1]; return `<td class="sm ${a && a.confirmed ? 'p-shade' : ''}">${cell(a, a && Jobs.byId(a.jobId), r)}</td>`; }).join('')}</tr>`;
         }).join('')}</tbody></table>
-        <p class="p-note">網掛け・◎は確定。取り消し線は、上位の人が確定済み（指名済）の求人。</p></div>`,
+        <p class="p-note">網掛け・◎は確定。「指名済」は、上位の人が確定済みの求人（取り消し線は引きません）。</p></div>`,
     });
   },
 
