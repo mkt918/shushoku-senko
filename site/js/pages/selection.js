@@ -436,4 +436,4 @@ const Selection = {
   },
 };
 
-Pages.register({ id: 'selection', no: 4, group: '選考', title: '選考会議', render: v => { Selection._stats = null; Selection.render(v); } });
+Pages.register({ id: 'selection', no: 4, group: '選考', title: '選考会議（1次）', render: v => { Selection._stats = null; Selection.render(v); } });

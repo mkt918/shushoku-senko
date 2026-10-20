@@ -36,7 +36,7 @@ const SecondPage = {
     const rows = all.filter(x => f === '' ? true : f === '未定' ? x.wait : f === '待' ? (!x.wait && !x.cur.result) : (!x.wait && x.cur.result === '内定'));
     view.innerHTML = `
       <div class="page-head">
-        <div><h1>2次応募</h1><p class="lead">1次で内定しなかった（不採用・辞退）生徒が、ここに自動で並びます。応募先を決め、試験日・合否まで続けて記録します。</p></div>
+        <div><h1>選考会議（2次）</h1><p class="lead">1次で内定しなかった（不採用・辞退）生徒が、ここに自動で並びます。応募先を決め、試験日・合否まで続けて記録します。</p></div>
         <div class="head-actions">
           <button class="btn btn-primary" id="scPrint" ${all.length ? '' : 'disabled'}>2次選考会議の資料を印刷</button>
         </div>
@@ -162,4 +162,4 @@ const SecondPage = {
   },
 };
 
-Pages.register({ id: 'second', no: 7, group: '見学・応募', title: '2次応募', render: v => SecondPage.render(v) });
+Pages.register({ id: 'second', no: 7, group: '見学・応募', title: '選考会議（2次）', render: v => SecondPage.render(v) });
