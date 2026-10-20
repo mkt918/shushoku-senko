@@ -118,15 +118,21 @@ const Selection = {
         ${Array.from({ length: PREF_N }, (_, i) => `<th>第${i + 1}希望</th>`).join('')}</tr></thead>
         <tbody>${this.sortedSeekers().map(r => this.rowHtml(r)).join('')}</tbody>
       </table></div>
-      <h2 class="section-title">求人ごとの希望状況</h2>
-      <p class="help">確定数が本校への求人数を超えると赤く表示します。行をクリックすると希望者の一覧を開きます。</p>
-      <div id="selJobs"></div>` : `<div class="empty"><p class="empty-title">就職希望者（学校斡旋）がいません</p>
+      <details class="card-fold" id="selJobsFold" ${this.state.jobsOpen ? 'open' : ''}><summary>求人ごとの希望状況</summary>
+        <p class="help">確定数が本校への求人数を超えると赤く表示します。行をクリックすると希望者の一覧を開きます。</p>
+        <div id="selJobs"></div></details>
+      <details class="card-fold" id="selListFold" ${this.state.listOpen === false ? '' : 'open'}><summary>受験先の一覧（出席番号順）</summary>
+        <p class="help">確定した生徒が、どの企業を受けるかの一覧です。送付先の住所などは、ここで直せます（空欄は、求人票の窓口・所在地のまま）。直すと、その求人票に保存されます。</p>
+        <div id="selList"></div></details>` : `<div class="empty"><p class="empty-title">就職希望者（学校斡旋）がいません</p>
         <p>「生徒・成績」で進路希望調査を取り込むと、就職希望者が順位順に並びます。</p></div>`}`;
 
     $('#selImport', view).addEventListener('click', () => Importer.run('selection'));
     if (!seekers.length) return;
     this.bindTable($('#selTable', view));
     this.drawJobs($('#selJobs', view));
+    this.drawList($('#selList', view));
+    $('#selJobsFold', view).addEventListener('toggle', e => { this.state.jobsOpen = e.target.open; });
+    $('#selListFold', view).addEventListener('toggle', e => { this.state.listOpen = e.target.open; });
     this.applyFilter(view);
     $$('th[data-sort]', view).forEach(th => th.addEventListener('click', () => {
       const k = th.dataset.sort, st = this.state;
@@ -143,6 +149,30 @@ const Selection = {
     $('#selAuto', view).addEventListener('click', () => this.autoPropose());
     $('#selPrint', view).addEventListener('click', () => this.print());
     $('#selXlsx', view).addEventListener('click', () => this.excel());
+  },
+
+  /** 受験先の一覧（出席番号順）。送付先を、その場で直せる */
+  drawList(el) {
+    const rows = Apps.currents().filter(x => Jobs.byId(x.a.jobId)).sort((x, y) => num(x.s.no3) - num(y.s.no3));
+    if (!rows.length) { el.innerHTML = '<p class="sub">確定した生徒がまだいません。</p>'; return; }
+    const f = (j, k, ph, cls) => `<input data-job="${j.id}" data-k="${k}" value="${esc(j[k] || '')}" placeholder="${esc(ph || '')}" class="${cls}" autocomplete="off">`;
+    el.innerHTML = `<div class="table-wrap"><table class="tbl tbl-edit tbl-list"><thead><tr><th class="num">番号</th><th>氏名</th><th>次</th><th>受験先</th><th>送付先の郵便番号</th><th>送付先の住所</th><th>送付先の部署</th><th>担当者</th><th></th></tr></thead>
+      <tbody>${rows.map(({ s, a }) => { const j = Jobs.byId(a.jobId);
+        return `<tr><td class="num mono">${esc(s.no3)}</td><td class="nowrap">${esc(s.name)}</td><td class="c">${a.round}</td>
+        <td class="sm"><span class="mono">${esc(Derive.short(j))}</span> <b>${esc(j.company)}</b><br><span class="sub">${esc(j.jobTitle || '')}</span></td>
+        <td>${f(j, 'sendZip', j.zip, 'w-zip')}</td><td>${f(j, 'sendAddress', j.address, 'w-addr')}</td><td>${f(j, 'sendDept', j.dept, 'w-s')}</td><td>${f(j, 'sendContact', j.contact, 'w-s')}</td>
+        <td><button class="btn btn-sm" data-editjob="${j.id}">求人票を開く</button></td></tr>`; }).join('')}</tbody></table></div>`;
+    el.addEventListener('change', e => {
+      const t = e.target; if (!t.dataset.job) return;
+      const j = Jobs.byId(t.dataset.job); if (!j) return;
+      j[t.dataset.k] = t.value.trim(); Store.changed();
+      // 同じ求人を受ける別の生徒の行にも、同じ値を出す
+      $$(`[data-job="${j.id}"][data-k="${t.dataset.k}"]`, el).forEach(i => { if (i !== t) i.value = j[t.dataset.k]; });
+    });
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-editjob]'); if (!b) return;
+      Jobs.edit(b.dataset.editjob).then(() => UI.refresh());
+    });
   },
 
   applyFilter(view) {

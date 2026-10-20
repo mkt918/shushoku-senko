@@ -728,3 +728,5 @@ details.card-fold > .card { border: 0; box-shadow: none; padding: 8px 0 0; margi
 .dash-tbl tfoot td, .dash-tbl tfoot th { border-top: 2px solid var(--line-strong); font-weight: 700; }
 .dash-todo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .dash-todo a.tag { text-decoration: none; font-size: 12.5px; padding: 2px 8px; }
+.tbl-list input.w-zip { width: 92px; }
+.tbl-list input.w-addr { width: 100%; min-width: 260px; }
