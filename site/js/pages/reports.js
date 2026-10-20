@@ -213,6 +213,8 @@ const Reports = {
       `内定者を日本標準職業分類（総務省）で数えています。${noCode ? `職業分類コードが未入力の内定者が ${noCode} 人います（求人票で入力してください）。` : ''}`, true);
   },
 
+  /** 表のセルの揃え：数は右、番号・コード（数字だけの文字列）は中央 */
+  cellCls(v) { return typeof v === 'number' ? 'num' : /^[\d\-]+$/.test(String(v)) ? 'c code' : ''; },
   drawGeneric(el, title, head, body, shade, note, numeric) {
     body = body.map(r => r.map(v => this.zv(v)));   // 「0は記載しない」
     el.innerHTML = `
@@ -220,14 +222,14 @@ const Reports = {
       <span class="count">${numeric ? '' : body.length + ' 件'}</span></div>
       ${note ? `<p class="help">${esc(note)}</p>` : ''}
       ${body.length ? `<div class="table-wrap"><table class="tbl"><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
-        <tbody>${body.map(r => `<tr>${r.map(v => `<td class="${typeof v === 'number' ? 'num' : ''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+        <tbody>${body.map(r => `<tr>${r.map(v => `<td class="${this.cellCls(v)}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
         : '<div class="empty"><p class="empty-title">まだデータがありません</p></div>'}`;
     const fullTitle = `${nendoLabel(Store.data.year)}　${title}`;
     $('[data-act="print"]', el).addEventListener('click', () => Print.open({
       title: fullTitle, orientation: 'landscape',
       html: `<div class="p-page"><p class="p-title">${esc(fullTitle)}</p><p class="p-meta"><span>${esc(Store.data.settings.school.name)}</span><span>${todayISO()} 現在</span></p>
         <table class="p-table"><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
-        <tbody>${body.map((r, i) => `<tr class="${shade[i] ? 'p-shade' : ''}">${r.map(v => `<td class="${typeof v === 'number' ? 'num' : ''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+        <tbody>${body.map((r, i) => `<tr class="${shade[i] ? 'p-shade' : ''}">${r.map(v => `<td class="${this.cellCls(v)}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
         ${note ? `<p class="p-note">${esc(note)}</p>` : ''}</div>`,
     }));
     $('[data-act="xlsx"]', el).addEventListener('click', () =>

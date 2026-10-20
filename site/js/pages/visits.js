@@ -36,7 +36,7 @@ const VisitsPage = {
       <tbody>${groups.map(g => { const dest = Derive.sendTo(g.job); const dates = [...new Set(g.apps.map(x => x.a.visitDate).filter(Boolean))]; return `<tr>
         <td><input type="checkbox" data-job="${g.job.id}" ${st.sel.has(g.job.id) ? 'checked' : ''}></td>
         <td class="num mono">${esc(Derive.short(g.job))}</td><td>${esc(g.job.company)}</td><td>${esc(g.job.jobTitle || '')}</td>
-        <td class="sm">${g.apps.length} 人</td><td class="sm">${dates.map(fmtMD).join('、') || '<span class="sub">未定</span>'}</td>
+        <td class="sm num">${g.apps.length} 人</td><td class="sm">${dates.map(fmtMD).join('、') || '<span class="sub">未定</span>'}</td>
         <td class="sm">${dest.address ? esc(Derive.withPref(dest.address, dest.zip)) : '<span class="tag tag-warn">住所未入力</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
   },
   bindSelectable(root, groups) {
