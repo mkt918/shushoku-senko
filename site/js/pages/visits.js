@@ -71,10 +71,7 @@ const VisitsPage = {
           <tr class="vc-head"><td colspan="8">
             <div class="vc-line"><h3 class="vc-title"><span class="mono">${esc(Derive.short(j))}</span> ${esc(j.company)}　<span class="sub">${esc(j.jobTitle || '')}</span>　<span class="tag">${g.apps.length}人</span></h3>
               <button class="btn btn-sm" data-edit="${j.id}">求人票を開く</button></div>
-            <div class="sub">窓口：${esc([j.dept, j.contact].filter(Boolean).join('　') || '未入力')}　TEL：${esc(j.tel || '未入力')}　送付先：${esc(dest.address || '未入力')}${dest.changed ? '（変更あり）' : ''}${j.visitOk || j.visitInfo ? `　／　見学の受け入れ：${esc(j.visitOk || '')} ${esc(j.visitInfo || '')}` : ''}</div>
-            <div class="bulk"><span class="sub">この事業所の全員に</span>
-              <input placeholder="担当" list="callers" data-bulk="visitCaller" class="w-s"><input type="date" data-bulk="visitDate"><input placeholder="hh:mm" data-bulk="visitTime" class="w-hm" maxlength="5">
-              <button class="btn btn-sm" data-apply="${j.id}">まとめて入力</button></div></td></tr>
+            <div class="sub">窓口：${esc([j.dept, j.contact].filter(Boolean).join('　') || '未入力')}　TEL：${esc(j.tel || '未入力')}　送付先：${esc(dest.address || '未入力')}${dest.changed ? '（変更あり）' : ''}${j.visitOk || j.visitInfo ? `　／　見学の受け入れ：${esc(j.visitOk || '')} ${esc(j.visitInfo || '')}` : ''}</div></td></tr>
           ${g.apps.map(({ a, s }) => `<tr class="vrow"><td>${inp(a, 'visitCaller', 'text', 'w-s')}</td><td class="num mono">${esc(s.no3)}</td><td class="nowrap">${esc(s.name)}</td>
             <td class="sm"><span class="mono">${esc(Derive.short(j))}</span> ${esc(j.company)}</td>
             <td>${inp(a, 'visitDate', 'date')}</td><td>${inp(a, 'visitTime', 'text', 'w-hm')}</td>
@@ -95,14 +92,6 @@ const VisitsPage = {
     el.addEventListener('click', e => {
       const ed = e.target.closest('[data-edit]');
       if (ed) return Jobs.edit(ed.dataset.edit).then(() => UI.refresh());
-      const ap = e.target.closest('[data-apply]');
-      if (ap) {
-        const card = ap.closest('.vc-head');
-        const g = groups.find(x => x.job.id === ap.dataset.apply);
-        $$('[data-bulk]', card).forEach(i => { const v = i.dataset.bulk === 'visitTime' ? VisitsPage.hm(i.value) : i.value.trim(); if (v) g.apps.forEach(({ a }) => { a[i.dataset.bulk] = v; }); });
-        Store.changed();
-        UI.refresh();
-      }
     });
     $('#vPrint', el).addEventListener('click', () => Docs.printCallTable(groups));
     $('#vXlsx', el).addEventListener('click', () => Docs.excelCallTable(groups));
