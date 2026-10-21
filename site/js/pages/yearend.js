@@ -110,47 +110,59 @@ const YearendPage = {
     const st = this.state, srcs = Slides.sources();
     if (!srcs.length) { el.innerHTML = '<div class="empty"><p class="empty-title">スライドにする数字がありません</p><p>［進路決定］を入力するか、［過去の実績］で前年度までの卒業者全体の人数を入れてください。</p></div>'; return; }
     if (!srcs.includes(st.sy)) st.sy = srcs[0];
+    st.slOpen = st.slOpen || {};
     const ov = () => { const ye = Store.data.settings.yearend; return ye.slides = ye.slides || {}; };
     const raw = Slides.build(st.sy, true);
-    let htmls = Slides.all(st.sy);
-    const lists = [['year', '3枚目　3年生の1年間（1行＝1項目。「時期｜内容」）', 6], ['money', '4枚目　進学の費用と支援（「見出し｜内容」）', 6], ['flow', '10枚目　就職希望者の流れ（「時期｜内容」）', 6], ['ask', '10枚目　ご家庭へのお願い（1行＝1項目）', 5]];
+    const LISTS = { year: ['時期｜内容（1行＝1項目）', 6], money: ['見出し｜内容（1行＝1項目）', 6], flow: ['就職希望者の流れ　時期｜内容', 6], ask: ['ご家庭へのお願い（1行＝1項目）', 5] };
+    const inp = (k, l, ph) => `<label class="field wide"><span class="label">${l}</span><input data-k="${k}" value="${esc(ov()[k] || '')}" placeholder="${esc(ph)}"></label>`;
+    const area = k => `<label class="field wide"><span class="label">${LISTS[k][0]}</span><textarea data-k="${k}" rows="${LISTS[k][1]}" placeholder="${esc(Slides.DEF[k])}">${esc(ov()[k] || '')}</textarea></label>`;
+    const editor = s => {
+      const o = ov();
+      const common = s.cover ? `${inp('coverTitle', '表紙の題', Slides.coverTitle(Store.data.year))}${inp('cover1', '1行目', Slides.DEF.cover1)}${inp('cover2', '2行目（空欄＝自動）', '例：令和〇年度卒業予定者の進路状況と、進路指導のあらまし')}`
+        : `<label class="check"><input type="checkbox" data-hide="${s.id}" ${(o.hide || {})[s.id] ? '' : 'checked'}> このスライドを使う</label>
+           <label class="field wide"><span class="label">題（空欄＝自動）</span><input data-title="${s.id}" value="${esc((o.titles || {})[s.id] || '')}" placeholder="${esc(s.def)}"></label>
+           <label class="field wide"><span class="label">ひとこと（スライドの下に表示）</span><textarea data-memo="${s.id}" rows="2" placeholder="例：詳しくは個別面談でご説明します">${esc((o.memo || {})[s.id] || '')}</textarea></label>`;
+      const extra = s.id === 'year' ? area('year') : s.id === 'money' ? area('money') : s.id === 'flow' ? area('flow') + area('ask') : '';
+      return `<details class="sl-edit" data-open="${s.id}" ${st.slOpen[s.id] ? 'open' : ''}><summary>文面を直す</summary><div class="grid">${common}${extra}</div></details>`;
+    };
     el.innerHTML = `<div class="toolbar"><label class="inline">使う数字 <select id="slSrc">${srcs.map(y => `<option value="${y}" ${y === st.sy ? 'selected' : ''}>${y === Store.data.year ? `今年度（${Yr.long(y)}・現状）` : `${Yr.long(y)}卒業生の実績`}</option>`).join('')}</select></label>
         <div class="seg" title="スライドの縦横比">${['16:9', '4:3'].map(r => `<button data-ratio="${r}" class="${Slides.ratio() === r ? 'on' : ''}">${r}</button>`).join('')}</div>
         <span class="sub" id="slCount"></span><span class="grow"></span>
-        <button class="btn" id="slPrint">印刷・PDF</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
-      <p class="help">進路決定と過去の実績から自動で作ります。数字を直すときは、［進路決定］や［過去の実績］を直してください。発表では、スライドが順に入ってくる動きがつきます。</p>
-      <details class="card card-fold" id="slEdit" ${st.slEdit ? 'open' : ''}><summary>文面を直す（題・使うかどうか・ひとこと・3/4/10枚目の文）</summary>
-        <div class="table-wrap"><table class="tbl"><thead><tr><th>使う</th><th>枚</th><th>題（空欄＝自動）</th><th>ひとこと（スライドの下に表示）</th></tr></thead><tbody>
-          ${raw.map((s, i) => `<tr><td class="ctr"><input type="checkbox" data-hide="${s.id}" ${(ov().hide || {})[s.id] ? '' : 'checked'} ${s.id === 'cover' ? 'disabled' : ''}></td><td class="ctr">${i + 1}</td>
-            <td><input data-title="${s.id}" value="${esc((ov().titles || {})[s.id] || '')}" placeholder="${esc(s.def)}" style="width:100%"></td>
-            <td>${s.cover ? '' : `<input data-memo="${s.id}" value="${esc((ov().memo || {})[s.id] || '')}" placeholder="例：詳しくは個別面談でご説明します" style="width:100%">`}</td></tr>`).join('')}</tbody></table></div>
-        <div class="grid" style="margin-top:12px">
-          <label class="field wide"><span class="label">表紙の題</span><input data-k="coverTitle" value="${esc(ov().coverTitle || '')}" placeholder="${esc(Slides.coverTitle(Store.data.year))}"></label>
-          <label class="field"><span class="label">表紙の1行目</span><input data-k="cover1" value="${esc(ov().cover1 || '')}" placeholder="${esc(Slides.DEF.cover1)}"></label>
-          <label class="field"><span class="label">表紙の2行目（空欄＝自動）</span><input data-k="cover2" value="${esc(ov().cover2 || '')}" placeholder="例：令和〇年度卒業予定者の進路状況と、進路指導のあらまし"></label>
-          ${lists.map(([k, l, r]) => `<label class="field wide"><span class="label">${l}</span><textarea data-k="${k}" rows="${r}" placeholder="${esc(Slides.DEF[k])}">${esc(ov()[k] || '')}</textarea></label>`).join('')}
-        </div>
-        <div class="toolbar"><button class="btn btn-sm" id="slReset">文面をすべて初期に戻す</button><span class="sub">空欄にすると、その項目は初期の文に戻ります。</span></div>
-      </details>
-      <div id="slGrid"></div>`;
-    const drawGrid = () => {
+        <button class="btn btn-sm" id="slReset">文面をすべて初期に戻す</button>
+        <button class="btn" id="slPrint">印刷・PDF</button><button class="btn" id="slDl" title="開くだけで発表できる HTML ファイル（動きつき）">ダウンロード</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
+      <p class="help">進路決定と過去の実績から自動で作ります。数字を直すときは、［進路決定］や［過去の実績］を直してください。各スライドの右の「文面を直す」で、題・ひとこと・文章を変えられます（空欄＝初期の文）。発表では、スライドが順に入ってくる動きがつきます。</p>
+      <div class="sl-rows">${raw.map(s => `<div class="sl-row" data-id="${s.id}"><div class="sl-thumb" title="クリックで、この枚から発表"><div class="sl-sc" style="transform:scale(.5)"></div><span class="sl-no"></span></div>${editor(s)}</div>`).join('')}</div>`;
+    let htmls = [];
+    /** 一覧の小さな画面だけを描き直す（入力欄は触らないので、続けて入力できる） */
+    const drawThumbs = () => {
       htmls = Slides.all(st.sy);
-      $('#slGrid', el).innerHTML = Slides.thumbs(htmls);
+      const all = Slides.build(st.sy, false, true), w = Slides.W;
+      let vis = 0;
+      all.forEach((s, ri) => {
+        const row = $(`.sl-row[data-id="${s.id}"]`, el), th = $('.sl-thumb', row), off = !!s.hidden;
+        th.style.width = (w / 2) + 'px'; th.style.height = '360px';
+        const sc = $('.sl-sc', th); sc.style.width = w + 'px';
+        sc.innerHTML = off ? Slides.slide(s, ri, all.length) : htmls[vis];
+        th.classList.toggle('is-off', off);
+        th.dataset.go = off ? '' : vis;
+        $('.sl-no', th).textContent = off ? '使わない' : vis + 1;
+        if (!off) vis++;
+      });
       $('#slCount', el).textContent = `${htmls.length} 枚`;
-      $$('[data-go]', el).forEach(t => t.addEventListener('click', () => Slides.present(htmls, +t.dataset.go)));
     };
-    drawGrid();
+    drawThumbs();
     const put = (group, key, v) => {
       const o = ov(); v = v.trim();
       if (group) { o[group] = Object.assign({}, o[group]); if (v) o[group][key] = v; else delete o[group][key]; }
       else if (v) o[key] = v; else delete o[key];
-      Store.changed(); drawGrid();
+      Store.changed(); drawThumbs();
     };
-    $('#slEdit', el).addEventListener('toggle', e => { st.slEdit = e.target.open; });
+    $$('.sl-thumb', el).forEach(t => t.addEventListener('click', () => { if (t.dataset.go !== '') Slides.present(htmls, +t.dataset.go); }));
+    $$('[data-open]', el).forEach(d => d.addEventListener('toggle', () => { st.slOpen[d.dataset.open] = d.open; }));
     $$('[data-title]', el).forEach(i => i.addEventListener('change', () => put('titles', i.dataset.title, i.value)));
     $$('[data-memo]', el).forEach(i => i.addEventListener('change', () => put('memo', i.dataset.memo, i.value)));
     $$('[data-k]', el).forEach(i => i.addEventListener('change', () => put(null, i.dataset.k, i.value)));
-    $$('[data-hide]', el).forEach(i => i.addEventListener('change', () => { const o = ov(); o.hide = Object.assign({}, o.hide); if (i.checked) delete o.hide[i.dataset.hide]; else o.hide[i.dataset.hide] = true; Store.changed(); drawGrid(); }));
+    $$('[data-hide]', el).forEach(i => i.addEventListener('change', () => { const o = ov(); o.hide = Object.assign({}, o.hide); if (i.checked) delete o.hide[i.dataset.hide]; else o.hide[i.dataset.hide] = true; Store.changed(); drawThumbs(); }));
     $('#slReset', el).addEventListener('click', async () => {
       if (!await UI.confirm('スライドの文面（題・ひとこと・使うかどうか・各枚の文）をすべて初期に戻します。よろしいですか？', { ok: '初期に戻す', danger: true })) return;
       Store.data.settings.yearend.slides = {}; Store.changed(); UI.refresh();
@@ -159,6 +171,7 @@ const YearendPage = {
     $$('[data-ratio]', el).forEach(b => b.addEventListener('click', () => { Store.data.settings.yearend.slideRatio = b.dataset.ratio; Store.changed(); UI.refresh(); }));
     $('#slShow', el).addEventListener('click', () => Slides.present(htmls, 0));
     $('#slPrint', el).addEventListener('click', () => Slides.print(htmls, `${Yr.long(Store.data.year)}進路説明会`));
+    $('#slDl', el).addEventListener('click', () => Slides.download(htmls, `${Yr.long(Store.data.year)}進路説明会`));
   },
 
   /* ---------- 過去の実績 ---------- */

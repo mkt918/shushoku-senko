@@ -91,7 +91,7 @@ const Slides = {
 
   /* ---------- スライドの中身 ----------
      raw=true：直した文面・非表示を反映せず、全スライドの既定の題を返す（編集画面用） */
-  build(y, raw) {
+  build(y, raw, keepHidden) {
     const FY = Store.data.year, H = Store.data.history, sc = Store.data.settings.school;
     const isNow = y === FY, n = y ? this.nums(y) : null;
     if (!n || !this.total(n)) return [];
@@ -170,10 +170,11 @@ const Slides = {
 
     if (raw) return out;
     // 非表示の枚を除き、ひとこと（補足）をつける
-    return out.filter(s => !(ov.hide && ov.hide[s.id])).map(s => {
+    const list = out.map(s => {
       const memo = ov.memo && String(ov.memo[s.id] || '').trim();
-      return memo ? Object.assign(s, { body: s.body + `<div class="sl-memo">${esc(memo).replace(/\n/g, '<br>')}</div>` }) : s;
+      return Object.assign(s, { hidden: !!(ov.hide && ov.hide[s.id]) }, memo ? { body: s.body + `<div class="sl-memo">${esc(memo).replace(/\n/g, '<br>')}</div>` } : {});
     });
+    return keepHidden ? list : list.filter(s => !s.hidden);
   },
   coverTitle(FY) { const t = String(this.ov().coverTitle || '').trim(); return t || `${Yr.long(FY)}　進路説明会`; },
   coverLine(k) { const t = String(this.ov()[k] || '').trim(); return t || this.DEF[k]; },
@@ -187,18 +188,56 @@ const Slides = {
   },
   all(y) { const ss = this.build(y); return ss.map((s, i) => this.slide(s, i, ss.length)); },
 
-  /** 画面の一覧：1280×720 の枠を 0.5 倍に縮めて並べる */
-  thumbs(htmls) {
-    const w = this.W;
-    return `<div class="sl-grid">${htmls.map((h, i) => `<div class="sl-thumb" data-go="${i}" title="クリックで、この枚から発表" style="width:${w / 2}px"><div class="sl-sc" style="transform:scale(.5);width:${w}px">${h}</div><span class="sl-no">${i + 1}</span></div>`).join('')}</div>`;
+  /* ---------- 全画面で発表（動きつき。実体は slidesPlayer） ---------- */
+  ANIM: '.sl-h h2, .sl-cover h1, .sl-c1, .sl-c2, .sl-c3, .sl-tile, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty',
+  present(htmls, start = 0) {
+    if (!htmls.length) return;
+    const ov = document.createElement('div');
+    ov.id = 'slideShow';
+    document.body.appendChild(ov);
+    const fs = () => { if (!document.fullscreenElement) close(); };
+    const player = slidesPlayer({ host: ov, htmls, W: this.W, H: this.H, ANIM: this.ANIM, start, onClose: () => close(), hint: '← → で移動　Esc で終了' });
+    function close() {
+      document.removeEventListener('fullscreenchange', fs);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      player.destroy(); ov.remove();
+    }
+    try { ov.requestFullscreen().then(() => document.addEventListener('fullscreenchange', fs)).catch(() => {}); } catch (e) { /* 全画面にできなくても、重ね表示で発表できる */ }
   },
 
-  /* ---------- 発表中の動き（LPのように、入ってくる） ---------- */
-  ANIM: '.sl-h h2, .sl-cover h1, .sl-c1, .sl-c2, .sl-c3, .sl-tile, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty',
-  animate(sl, dir) {
+  /** ダウンロード：開くだけで発表できる HTML 1ファイル（動きつき・通信なし） */
+  download(htmls, title) {
+    if (!htmls.length) return;
+    const css = `:root{--font:${getComputedStyle(document.documentElement).getPropertyValue('--font') || 'sans-serif'}}html,body{margin:0;height:100%;background:#111}` + SLIDE_CSS;
+    const data = JSON.stringify(htmls).replace(/</g, '\\u003c');
+    const doc = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${css}</style></head><body><div id="slideShow"></div>
+<script>${slidesPlayer.toString()}
+slidesPlayer({ host: document.getElementById('slideShow'), htmls: ${data}, W: ${this.W}, H: ${this.H}, ANIM: ${JSON.stringify(this.ANIM)}, start: 0, hint: '← → で移動　F で全画面' });
+<\/script></body></html>`;
+    const url = URL.createObjectURL(new Blob([doc], { type: 'text/html' }));
+    const a = document.createElement('a'); a.href = url; a.download = `${title}.html`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  },
+
+  /** 印刷・PDF：1枚＝1ページ（16:9） */
+  print(htmls, title) {
+    const w = this.W;
+    Print.open({ title, html: htmls.map(h => `<div class="p-page sl-print" style="width:${w}px">${h}</div>`).join(''), orientation: '', margin: '0', size: `${w === 960 ? '254' : '338.67'}mm 190.5mm` });
+  },
+};
+
+/** 発表の実体：左右の移動・拡大縮小・LP風の動き・進行バー。アプリと、ダウンロードした HTML の両方で使う
+    （ダウンロード側では toString() で埋め込むので、アプリの他の関数・変数に頼らないこと） */
+function slidesPlayer(o) {
+  const host = o.host, htmls = o.htmls, W = o.W, H = o.H;
+  let i = Math.max(0, Math.min(o.start || 0, htmls.length - 1));
+  host.innerHTML = '<div class="sl-stage"></div><div class="sl-prog"><i></i></div><div class="sl-hint">' + (o.hint || '') + '</div>';
+  const stage = host.firstChild, bar = host.querySelector('.sl-prog i');
+  stage.style.width = W + 'px';
+  const fit = () => { stage.style.transform = 'translate(-50%,-50%) scale(' + Math.min(window.innerWidth / W, window.innerHeight / H) + ')'; };
+  const animate = (sl, dir) => {
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    [...sl.querySelectorAll(this.ANIM)].forEach((el, i) => el.style.setProperty('--i', Math.min(i, 28)));
-    // 数字は 0 から数え上げる
+    [].slice.call(sl.querySelectorAll(o.ANIM)).forEach((el, n) => el.style.setProperty('--i', Math.min(n, 28)));
     sl.querySelectorAll('.sl-tv, .sl-total b').forEach(el => {
       const node = el.firstChild, to = parseInt(node && node.nodeValue, 10);
       if (!node || node.nodeType !== 3 || !(to > 0)) return;
@@ -211,50 +250,23 @@ const Slides = {
       node.nodeValue = '0'; requestAnimationFrame(step);
     });
     sl.classList.add(dir < 0 ? 'play-l' : 'play-r');
-  },
-
-  /* ---------- 全画面で発表 ---------- */
-  present(htmls, start = 0) {
-    if (!htmls.length) return;
-    let i = Math.max(0, Math.min(start, htmls.length - 1));
-    const ov = document.createElement('div');
-    ov.id = 'slideShow';
-    ov.innerHTML = '<div class="sl-stage"></div><div class="sl-prog"><i></i></div><div class="sl-hint">← → で移動　Esc で終了</div>';
-    document.body.appendChild(ov);
-    const stage = ov.firstChild, bar = ov.querySelector('.sl-prog i');
-    stage.style.width = this.W + 'px';
-    const draw = dir => {
-      const k = Math.min(window.innerWidth / this.W, window.innerHeight / this.H);
-      stage.style.transform = `translate(-50%,-50%) scale(${k})`;
-      stage.innerHTML = htmls[i];
-      bar.style.width = ((i + 1) / htmls.length * 100) + '%';
-      this.animate(stage.firstChild, dir || 1);
-    };
-    const close = () => {
-      window.removeEventListener('keydown', key, true); window.removeEventListener('resize', onResize);
-      document.removeEventListener('fullscreenchange', fs);
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-      ov.remove();
-    };
-    const fs = () => { if (!document.fullscreenElement) close(); };
-    const onResize = () => { const k = Math.min(window.innerWidth / this.W, window.innerHeight / this.H); stage.style.transform = `translate(-50%,-50%) scale(${k})`; };
-    const go = j => { j = Math.max(0, Math.min(j, htmls.length - 1)); if (j === i) return; const d = j > i ? 1 : -1; i = j; draw(d); };
-    const key = e => {
-      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
-      if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) go(i + 1);
-      else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) go(i - 1);
-      else if (e.key === 'Home') go(0); else if (e.key === 'End') go(htmls.length - 1); else return;
-      e.preventDefault();
-    };
-    window.addEventListener('keydown', key, true); window.addEventListener('resize', onResize);
-    ov.addEventListener('click', e => go(e.clientX < window.innerWidth / 3 ? i - 1 : i + 1));
-    draw(1);
-    try { ov.requestFullscreen().then(() => document.addEventListener('fullscreenchange', fs)).catch(() => {}); } catch (e) { /* 全画面にできなくても、重ね表示で発表できる */ }
-  },
-
-  /** 印刷・PDF：1枚＝1ページ（16:9） */
-  print(htmls, title) {
-    const w = this.W;
-    Print.open({ title, html: htmls.map(h => `<div class="p-page sl-print" style="width:${w}px">${h}</div>`).join(''), orientation: '', margin: '0', size: `${w === 960 ? '254' : '338.67'}mm 190.5mm` });
-  },
-};
+  };
+  const draw = dir => {
+    fit(); stage.innerHTML = htmls[i];
+    bar.style.width = ((i + 1) / htmls.length * 100) + '%';
+    animate(stage.firstChild, dir || 1);
+  };
+  const go = j => { j = Math.max(0, Math.min(j, htmls.length - 1)); if (j === i) return; const d = j > i ? 1 : -1; i = j; draw(d); };
+  const key = e => {
+    if (e.key === 'Escape') { if (o.onClose) { e.preventDefault(); o.onClose(); } return; }
+    if (e.key === 'f' || e.key === 'F') { if (document.fullscreenElement) document.exitFullscreen(); else if (host.requestFullscreen) host.requestFullscreen(); return; }
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].indexOf(e.key) >= 0) go(i + 1);
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].indexOf(e.key) >= 0) go(i - 1);
+    else if (e.key === 'Home') go(0); else if (e.key === 'End') go(htmls.length - 1); else return;
+    e.preventDefault();
+  };
+  const click = e => go(e.clientX < window.innerWidth / 3 ? i - 1 : i + 1);
+  window.addEventListener('keydown', key, true); window.addEventListener('resize', fit); host.addEventListener('click', click);
+  draw(1);
+  return { destroy() { window.removeEventListener('keydown', key, true); window.removeEventListener('resize', fit); } };
+}
