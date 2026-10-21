@@ -791,3 +791,78 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 /* 設定の目次：上の帯（ファイル名・保存）の下に止める */
 .toc { top: 51px; border-bottom: 1px solid var(--line); padding: 8px 0; }
 [id^="set-"] { scroll-margin-top: 110px; }
+
+/* ---------- 保護者説明会スライド（1枚＝1280×720px） ---------- */
+.sl { width: 1280px; height: 720px; box-sizing: border-box; background: #fff; color: #23262b; font-family: var(--font); position: relative; overflow: hidden; display: flex; flex-direction: column; text-align: left; line-height: 1.4; }
+.sl * { box-sizing: border-box; }
+.sl .c-job, .sl-tile.c-job { --c: #1f5f8b; --cs: #e6eff6; }
+.sl .c-edu, .sl-tile.c-edu { --c: #2e7d4f; --cs: #e5f2ea; }
+.sl .c-oth, .sl-tile.c-oth { --c: #8a8576; --cs: #f1efe9; }
+.sl-h { padding: 34px 64px 14px; border-bottom: 4px solid #1f5f8b; margin: 0 0 0; }
+.sl-h h2 { margin: 0; font-size: 38px; color: #1b4a6b; }
+.sl-b { flex: 1; padding: 30px 64px 10px; min-height: 0; }
+.sl-f { display: flex; justify-content: space-between; padding: 0 64px 18px; font-size: 16px; color: #8a8576; }
+.sl-cover { justify-content: center; padding: 0 110px; background: linear-gradient(135deg, #1b4a6b 0%, #1f5f8b 60%, #3a82b3 100%); color: #fff; }
+.sl-cover h1 { font-size: 64px; margin: 0 0 40px; letter-spacing: .04em; }
+.sl-c1 { font-size: 34px; margin: 0 0 8px; }
+.sl-c2 { font-size: 26px; margin: 0 0 70px; opacity: .92; }
+.sl-c3 { font-size: 24px; margin: 0; opacity: .85; border-top: 2px solid rgba(255,255,255,.5); padding-top: 18px; }
+.sl-tiles { display: flex; gap: 24px; }
+.sl-tile { flex: 1; background: var(--cs); border-top: 8px solid var(--c); border-radius: 8px; padding: 22px 26px 20px; }
+.sl-tl { font-size: 28px; font-weight: 700; color: var(--c); }
+.sl-tv { font-size: 96px; font-weight: 700; line-height: 1.1; color: var(--c); font-variant-numeric: tabular-nums; }
+.sl-tv small { font-size: 30px; margin-left: 6px; }
+.sl-ts { font-size: 17px; color: #4a4e55; min-height: 48px; }
+.sl-total { margin-top: 30px; font-size: 30px; text-align: center; }
+.sl-total b { font-size: 44px; color: #1b4a6b; }
+.sl-stacks { display: flex; flex-direction: column; gap: 18px; }
+.sl-sr { display: flex; align-items: center; gap: 16px; font-size: 24px; }
+.sl-sl { width: 170px; text-align: right; flex: none; }
+.sl-st { flex: 1; display: flex; height: 52px; border-radius: 6px; overflow: hidden; background: #f1efe9; }
+.sl-st i { background: var(--c); color: #fff; font-style: normal; font-size: 20px; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+.sl-sr b { width: 90px; font-variant-numeric: tabular-nums; }
+.sl-legend { margin-top: 26px; font-size: 20px; text-align: center; color: #4a4e55; }
+.sl-legend i { display: inline-block; width: 18px; height: 18px; background: var(--c); border-radius: 3px; vertical-align: -2px; margin-left: 12px; }
+.sl-bars { display: flex; flex-direction: column; gap: 14px; }
+.sl-br { display: flex; align-items: center; gap: 16px; font-size: 24px; }
+.sl-bl { width: 430px; text-align: right; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-bt { flex: 1; height: 36px; background: #f1efe9; border-radius: 4px; }
+.sl-bt i { display: block; height: 100%; background: #1f5f8b; border-radius: 4px; }
+.sl-br b { width: 80px; font-variant-numeric: tabular-nums; }
+.sl-cols { display: flex; align-items: flex-end; gap: 22px; height: 400px; padding-top: 10px; }
+.sl-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; font-size: 22px; }
+.sl-col i { width: 100%; background: #1f5f8b; border-radius: 4px 4px 0 0; }
+.sl-col:last-child i { background: #e08a1e; }
+.sl-col span { font-size: 22px; color: #4a4e55; }
+.sl-chips { display: flex; flex-wrap: wrap; gap: 10px 12px; }
+.sl-chips span { background: #e6eff6; color: #1b4a6b; border-radius: 999px; padding: 6px 18px; font-size: 22px; }
+.sl-chips span.more { background: #f1efe9; color: #6a6e75; }
+.sl-two { display: flex; gap: 40px; }
+.sl-two > div { flex: 1; min-width: 0; }
+.sl-two h3 { font-size: 26px; margin: 0 0 14px; color: #1b4a6b; }
+.sl-two h3 small { font-size: 20px; color: #6a6e75; font-weight: 400; }
+.sl-two .sl-chips span { font-size: 19px; padding: 4px 14px; }
+.sl-ex { display: flex; flex-direction: column; gap: 14px; }
+.sl-exr { display: flex; align-items: center; gap: 22px; background: #f7f6f2; border-radius: 8px; padding: 16px 24px; font-size: 22px; }
+.sl-exr b { width: 170px; flex: none; font-size: 26px; color: #1b4a6b; }
+.sl-exr span { flex: 1; }
+.sl-exr em { font-style: normal; font-size: 30px; font-weight: 700; color: #2e7d4f; width: 90px; text-align: right; }
+.sl-flow { list-style: none; margin: 0; padding: 0; border-left: 4px solid #1f5f8b; }
+.sl-flow li { padding: 7px 0 7px 20px; font-size: 22px; }
+.sl-flow b { display: inline-block; width: 140px; color: #1b4a6b; }
+.sl-ask { margin: 0; padding-left: 26px; font-size: 24px; }
+.sl-ask li { margin-bottom: 14px; }
+.sl-note { font-size: 18px; color: #6a6e75; margin: 16px 0 0; }
+.sl-empty { font-size: 26px; color: #8a8576; text-align: center; margin-top: 120px; }
+/* 一覧（画面） */
+.sl-grid { display: grid; grid-template-columns: repeat(auto-fill, 640px); gap: 18px; }
+.sl-thumb { position: relative; width: 640px; height: 360px; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; cursor: pointer; background: #fff; }
+.sl-thumb:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.sl-sc { transform-origin: 0 0; width: 1280px; height: 720px; pointer-events: none; }
+.sl-no { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; padding: 1px 8px; border-radius: 10px; }
+/* 発表（全画面） */
+#slideShow { position: fixed; inset: 0; z-index: 9999; background: #111; cursor: pointer; overflow: hidden; }
+#slideShow .sl-stage { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 50% 50%; }
+#slideShow .sl-hint { position: absolute; right: 14px; bottom: 10px; color: #888; font-size: 12px; }
+/* 印刷（16:9・1枚＝1ページ） */
+.sl-print { width: 1280px; height: 719px; overflow: hidden; }

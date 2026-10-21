@@ -9,7 +9,7 @@ const YearendPage = {
 
   render(view) {
     const st = this.state, ye = Store.data.settings.yearend;
-    const tabs = [['matome', '進路指導まとめ'], ['work', '就職先一覧'], ['senshu', '専修各種'], ['univ', '四大・短大'], ['master', '指定校一覧'], ['history', '過去の実績']];
+    const tabs = [['matome', '進路指導まとめ'], ['work', '就職先一覧'], ['senshu', '専修各種'], ['univ', '四大・短大'], ['master', '指定校一覧'], ['slides', '保護者説明会スライド'], ['history', '過去の実績']];
     view.innerHTML = `
       <div class="page-head"><div><h1>年度末の資料</h1>
       <p class="lead">進路決定の内容と、過去の実績（R1〜）から、<b>進路先一覧・指定校一覧・進路指導まとめ</b>を作ります。今年度の列は自動で足されます。</p></div></div>
@@ -103,6 +103,23 @@ const YearendPage = {
       Store.changed();
     } else if (res === 'del') { M[kind] = M[kind].filter(r => r.id !== id); Store.changed(); }
     if (res) UI.refresh();
+  },
+
+  /* ---------- 保護者説明会スライド ---------- */
+  draw_slides(el) {
+    const st = this.state, srcs = Slides.sources();
+    if (!srcs.length) { el.innerHTML = '<div class="empty"><p class="empty-title">スライドにする数字がありません</p><p>［進路決定］を入力するか、［過去の実績］で前年度までの卒業者全体の人数を入れてください。</p></div>'; return; }
+    if (!srcs.includes(st.sy)) st.sy = srcs[0];
+    const htmls = Slides.all(st.sy);
+    el.innerHTML = `<div class="toolbar"><label class="inline">使う数字 <select id="slSrc">${srcs.map(y => `<option value="${y}" ${y === st.sy ? 'selected' : ''}>${y === Store.data.year ? `今年度（${Yr.long(y)}・現状）` : `${Yr.long(y)}卒業生の実績`}</option>`).join('')}</select></label>
+        <span class="sub">${htmls.length} 枚</span><span class="grow"></span>
+        <button class="btn" id="slPrint">印刷・PDF（16:9）</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
+      <p class="help">進路決定と過去の実績から自動で作ります。数字を直すときは、［進路決定］や［過去の実績］を直してから開き直してください。小さい画面を押すと、その枚から発表できます。</p>
+      ${Slides.thumbs(htmls)}`;
+    $('#slSrc', el).addEventListener('change', e => { st.sy = +e.target.value; UI.refresh(); });
+    $('#slShow', el).addEventListener('click', () => Slides.present(htmls, 0));
+    $('#slPrint', el).addEventListener('click', () => Slides.print(htmls, `${Yr.long(Store.data.year)}進路説明会`));
+    $$('[data-go]', el).forEach(t => t.addEventListener('click', () => Slides.present(htmls, +t.dataset.go)));
   },
 
   /* ---------- 過去の実績 ---------- */
