@@ -118,7 +118,7 @@ const YearendPage = {
     const area = k => `<label class="field wide"><span class="label">${LISTS[k][0]}</span><textarea data-k="${k}" rows="${LISTS[k][1]}" placeholder="${esc(Slides.DEF[k])}">${esc(ov()[k] || '')}</textarea></label>`;
     const editor = s => {
       const o = ov();
-      const common = s.cover ? `${inp('coverTitle', '表紙の題', Slides.coverTitle(Store.data.year))}<label class="field wide"><span class="label">1行目（対象に合わせて）</span><input data-k="cover1" list="slAud" value="${esc(ov().cover1 || '')}" placeholder="${esc(Slides.DEF.cover1)}"><datalist id="slAud"><option value="保護者の皆様へ"><option value="中学校の先生方へ"><option value="生徒の皆さんへ"></datalist></label>${inp('cover2', '2行目（空欄＝自動）', '例：令和〇年度卒業予定者の進路状況と、進路指導のあらまし')}`
+      const common = s.cover ? `${inp('coverTitle', '表紙の題', Slides.coverTitle(Store.data.year))}${inp('cover2', '表紙の説明文（空欄＝自動）', '例：令和〇年度卒業予定者の進路状況と、進路指導のあらまし')}`
         : `<label class="check"><input type="checkbox" data-hide="${s.id}" ${(o.hide || {})[s.id] ? '' : 'checked'}> このスライドを使う</label>
            <label class="field wide"><span class="label">題（空欄＝自動）</span><input data-title="${s.id}" value="${esc((o.titles || {})[s.id] || '')}" placeholder="${esc(s.def)}"></label>
            <label class="field wide"><span class="label">ひとこと（スライドの下に表示）</span><textarea data-memo="${s.id}" rows="2" placeholder="例：詳しくは個別面談でご説明します">${esc((o.memo || {})[s.id] || '')}</textarea></label>`;
