@@ -115,8 +115,9 @@ const YearendPage = {
     let htmls = Slides.all(st.sy);
     const lists = [['year', '3枚目　3年生の1年間（1行＝1項目。「時期｜内容」）', 6], ['money', '4枚目　進学の費用と支援（「見出し｜内容」）', 6], ['flow', '10枚目　就職希望者の流れ（「時期｜内容」）', 6], ['ask', '10枚目　ご家庭へのお願い（1行＝1項目）', 5]];
     el.innerHTML = `<div class="toolbar"><label class="inline">使う数字 <select id="slSrc">${srcs.map(y => `<option value="${y}" ${y === st.sy ? 'selected' : ''}>${y === Store.data.year ? `今年度（${Yr.long(y)}・現状）` : `${Yr.long(y)}卒業生の実績`}</option>`).join('')}</select></label>
+        <div class="seg" title="スライドの縦横比">${['16:9', '4:3'].map(r => `<button data-ratio="${r}" class="${Slides.ratio() === r ? 'on' : ''}">${r}</button>`).join('')}</div>
         <span class="sub" id="slCount"></span><span class="grow"></span>
-        <button class="btn" id="slPrint">印刷・PDF（16:9）</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
+        <button class="btn" id="slPrint">印刷・PDF</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
       <p class="help">進路決定と過去の実績から自動で作ります。数字を直すときは、［進路決定］や［過去の実績］を直してください。発表では、スライドが順に入ってくる動きがつきます。</p>
       <details class="card card-fold" id="slEdit" ${st.slEdit ? 'open' : ''}><summary>文面を直す（題・使うかどうか・ひとこと・3/4/10枚目の文）</summary>
         <div class="table-wrap"><table class="tbl"><thead><tr><th>使う</th><th>枚</th><th>題（空欄＝自動）</th><th>ひとこと（スライドの下に表示）</th></tr></thead><tbody>
@@ -155,6 +156,7 @@ const YearendPage = {
       Store.data.settings.yearend.slides = {}; Store.changed(); UI.refresh();
     });
     $('#slSrc', el).addEventListener('change', e => { st.sy = +e.target.value; UI.refresh(); });
+    $$('[data-ratio]', el).forEach(b => b.addEventListener('click', () => { Store.data.settings.yearend.slideRatio = b.dataset.ratio; Store.changed(); UI.refresh(); }));
     $('#slShow', el).addEventListener('click', () => Slides.present(htmls, 0));
     $('#slPrint', el).addEventListener('click', () => Slides.print(htmls, `${Yr.long(Store.data.year)}進路説明会`));
   },

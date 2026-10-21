@@ -199,3 +199,4 @@
 - **文面は「文面を直す」で変えられる**：`settings.yearend.slides = { titles:{id}, hide:{id}, memo:{id}, coverTitle, cover1, cover2, year, money, flow, ask }`。空欄は既定（`Slides.DEF`）に戻る。複数行の項目は1行＝1項目で「見出し｜内容」。`Slides.build(y, true)` が編集画面用（反映前の題）。
 - **発表（全画面）には動きがつく**（`Slides.animate`＋`app.css` の `#slideShow`）：スライドが左右から入る／題・項目が順に浮かぶ／棒・柱が伸びる／人数が0から数える／下に進行バー。`prefers-reduced-motion` では動かさない。一覧・印刷には動きはない。
 - 1枚は 1280×720px。印刷は `Print.open`（338.67×190.5mm・余白0）。3・4枚目と10枚目の既定の文は一般的な例なので、学校の実情に合わせて直す。
+- 縦横比は 16:9（1280×720）と 4:3（960×720）をボタンで切り替える（`settings.yearend.slideRatio`、`Slides.W`）。4:3 は `.sl-43` の CSS で幅を詰める。印刷の用紙も連動（254×190.5mm／338.67×190.5mm）。

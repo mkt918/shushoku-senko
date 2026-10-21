@@ -8,7 +8,10 @@
    ============================================================ */
 
 const Slides = {
-  W: 1280, H: 720,
+  H: 720,
+  /** 縦横比：16:9（1280×720）／4:3（960×720）。設定 settings.yearend.slideRatio */
+  ratio() { return (Store.data.settings.yearend || {}).slideRatio === '4:3' ? '4:3' : '16:9'; },
+  get W() { return this.ratio() === '4:3' ? 960 : 1280; },
 
   /** 直せる文の既定。複数行は「見出し｜内容」を1行ずつ */
   DEF: {
@@ -178,14 +181,16 @@ const Slides = {
   /** スライド1枚分の HTML */
   slide(s, i, n) {
     const sc = Store.data.settings.school;
-    if (s.cover) return `<div class="sl sl-cover"><h1>${esc(s.title)}</h1>${s.body}</div>`;
-    return `<div class="sl"><div class="sl-h"><h2>${esc(s.title)}</h2></div><div class="sl-b">${s.body}</div><div class="sl-f"><span>${esc(sc.name || '')}</span><span>${i + 1} / ${n}</span></div></div>`;
+    const r43 = this.ratio() === '4:3' ? ' sl-43' : '';
+    if (s.cover) return `<div class="sl sl-cover${r43}"><h1>${esc(s.title)}</h1>${s.body}</div>`;
+    return `<div class="sl${r43}"><div class="sl-h"><h2>${esc(s.title)}</h2></div><div class="sl-b">${s.body}</div><div class="sl-f"><span>${esc(sc.name || '')}</span><span>${i + 1} / ${n}</span></div></div>`;
   },
   all(y) { const ss = this.build(y); return ss.map((s, i) => this.slide(s, i, ss.length)); },
 
   /** 画面の一覧：1280×720 の枠を 0.5 倍に縮めて並べる */
   thumbs(htmls) {
-    return `<div class="sl-grid">${htmls.map((h, i) => `<div class="sl-thumb" data-go="${i}" title="クリックで、この枚から発表"><div class="sl-sc" style="transform:scale(.5)">${h}</div><span class="sl-no">${i + 1}</span></div>`).join('')}</div>`;
+    const w = this.W;
+    return `<div class="sl-grid">${htmls.map((h, i) => `<div class="sl-thumb" data-go="${i}" title="クリックで、この枚から発表" style="width:${w / 2}px"><div class="sl-sc" style="transform:scale(.5);width:${w}px">${h}</div><span class="sl-no">${i + 1}</span></div>`).join('')}</div>`;
   },
 
   /* ---------- 発表中の動き（LPのように、入ってくる） ---------- */
@@ -217,6 +222,7 @@ const Slides = {
     ov.innerHTML = '<div class="sl-stage"></div><div class="sl-prog"><i></i></div><div class="sl-hint">← → で移動　Esc で終了</div>';
     document.body.appendChild(ov);
     const stage = ov.firstChild, bar = ov.querySelector('.sl-prog i');
+    stage.style.width = this.W + 'px';
     const draw = dir => {
       const k = Math.min(window.innerWidth / this.W, window.innerHeight / this.H);
       stage.style.transform = `translate(-50%,-50%) scale(${k})`;
@@ -248,6 +254,7 @@ const Slides = {
 
   /** 印刷・PDF：1枚＝1ページ（16:9） */
   print(htmls, title) {
-    Print.open({ title, html: htmls.map(h => `<div class="p-page sl-print">${h}</div>`).join(''), orientation: '', margin: '0', size: '338.67mm 190.5mm' });
+    const w = this.W;
+    Print.open({ title, html: htmls.map(h => `<div class="p-page sl-print" style="width:${w}px">${h}</div>`).join(''), orientation: '', margin: '0', size: `${w === 960 ? '254' : '338.67'}mm 190.5mm` });
   },
 };

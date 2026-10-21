@@ -855,14 +855,14 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .sl-note { font-size: 18px; color: #6a6e75; margin: 16px 0 0; }
 .sl-empty { font-size: 26px; color: #8a8576; text-align: center; margin-top: 120px; }
 /* 一覧（画面） */
-.sl-grid { display: grid; grid-template-columns: repeat(auto-fill, 640px); gap: 18px; }
-.sl-thumb { position: relative; width: 640px; height: 360px; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; cursor: pointer; background: #fff; }
+.sl-grid { display: flex; flex-wrap: wrap; gap: 18px; }
+.sl-thumb { position: relative; width: 640px; flex: none; height: 360px; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; cursor: pointer; background: #fff; }
 .sl-thumb:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .sl-sc { transform-origin: 0 0; width: 1280px; height: 720px; pointer-events: none; }
 .sl-no { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; padding: 1px 8px; border-radius: 10px; }
 /* 発表（全画面） */
 #slideShow { position: fixed; inset: 0; z-index: 9999; background: #111; cursor: pointer; overflow: hidden; }
-#slideShow .sl-stage { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 50% 50%; }
+#slideShow .sl-stage { position: absolute; left: 50%; top: 50%; height: 720px; transform-origin: 50% 50%; }
 #slideShow .sl-hint { position: absolute; right: 14px; bottom: 10px; color: #888; font-size: 12px; }
 /* 印刷（16:9・1枚＝1ページ） */
 .sl-print { width: 1280px; height: 719px; overflow: hidden; }
@@ -893,3 +893,29 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 #slideShow .sl-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(255,255,255,.12); }
 #slideShow .sl-prog i { display: block; height: 100%; background: #e08a1e; transition: width .5s ease; }
 @media (prefers-reduced-motion: reduce) { #slideShow .sl-cover { animation: none; } }
+
+/* ---------- スライド 4:3（960×720） ---------- */
+.sl.sl-43 { width: 960px; }
+.sl-43 .sl-h, .sl-43 .sl-b, .sl-43 .sl-f { padding-left: 48px; padding-right: 48px; }
+.sl-43 .sl-h h2 { font-size: 34px; }
+.sl-43 .sl-memo { left: 48px; right: 48px; }
+.sl-43.sl-cover { padding: 0 80px; }
+.sl-43.sl-cover h1 { font-size: 52px; }
+.sl-43 .sl-c2 { font-size: 24px; }
+.sl-43 .sl-tiles { gap: 16px; }
+.sl-43 .sl-tile { padding: 20px 18px 16px; }
+.sl-43 .sl-tv { font-size: 80px; }
+.sl-43 .sl-ts { font-size: 15px; min-height: 66px; }
+.sl-43 .sl-bl { width: 300px; font-size: 22px; }
+.sl-43 .sl-two { gap: 24px; }
+.sl-43 .sl-two h3 { font-size: 23px; }
+.sl-43 .sl-flow b { width: 110px; }
+.sl-43 .sl-flow li { font-size: 20px; }
+.sl-43 .sl-ask { font-size: 21px; padding-left: 22px; }
+.sl-43 .sl-col { font-size: 18px; }
+.sl-43 .sl-col span { font-size: 18px; }
+.sl-43 .sl-cols { gap: 12px; }
+.sl-43 .sl-exr { font-size: 20px; gap: 16px; padding: 14px 18px; }
+.sl-43 .sl-exr b { width: 150px; font-size: 23px; }
+.sl-43 .sl-chips span { font-size: 20px; }
+.sl-43 .sl-two .sl-chips span { font-size: 17px; }
