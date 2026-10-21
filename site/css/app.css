@@ -866,3 +866,30 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 #slideShow .sl-hint { position: absolute; right: 14px; bottom: 10px; color: #888; font-size: 12px; }
 /* 印刷（16:9・1枚＝1ページ） */
 .sl-print { width: 1280px; height: 719px; overflow: hidden; }
+
+/* ---------- スライド：ひとこと・動き（発表のときだけ） ---------- */
+.sl-memo { position: absolute; left: 64px; right: 64px; bottom: 54px; background: #fff4d6; border-left: 6px solid #e08a1e; padding: 10px 20px; font-size: 22px; border-radius: 4px; }
+.sl-rows { display: flex; flex-direction: column; gap: 12px; }
+.sl-ex .sl-exr span:only-child { font-size: 24px; }
+@keyframes slUp { from { opacity: 0; transform: translateY(34px); } to { opacity: 1; transform: none; } }
+@keyframes slInR { from { opacity: 0; transform: translateX(90px); } to { opacity: 1; transform: none; } }
+@keyframes slInL { from { opacity: 0; transform: translateX(-90px); } to { opacity: 1; transform: none; } }
+@keyframes slPop { from { opacity: 0; transform: scale(.85) translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes slGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes slGrowY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes slBg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes slLine { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+#slideShow .sl.play-r { animation: slInR .55s cubic-bezier(.2,.7,.2,1) both; }
+#slideShow .sl.play-l { animation: slInL .55s cubic-bezier(.2,.7,.2,1) both; }
+#slideShow .sl[class*="play-"] :is(.sl-h h2, .sl-c1, .sl-c2, .sl-c3, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty) { animation: slUp .65s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * .07s); }
+#slideShow .sl[class*="play-"] .sl-cover h1, #slideShow .sl-cover[class*="play-"] h1 { animation: slUp .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: .1s; }
+#slideShow .sl[class*="play-"] .sl-tile { animation: slPop .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * .18s); }
+#slideShow .sl[class*="play-"] .sl-bt i { transform-origin: left; animation: slGrowX 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.35s + var(--i, 0) * .07s); }
+#slideShow .sl[class*="play-"] .sl-col i { transform-origin: bottom; animation: slGrowY .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.35s + var(--i, 0) * .07s); }
+#slideShow .sl[class*="play-"] .sl-h { position: relative; }
+#slideShow .sl[class*="play-"] .sl-h::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 4px; background: #e08a1e; transform-origin: left; animation: slLine .9s .15s cubic-bezier(.2,.7,.2,1) both; }
+#slideShow .sl-cover { background-size: 220% 220%; animation: slBg 14s ease-in-out infinite; }
+#slideShow .sl-cover.play-r, #slideShow .sl-cover.play-l { animation: slInR .55s cubic-bezier(.2,.7,.2,1) both, slBg 14s ease-in-out infinite; }
+#slideShow .sl-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(255,255,255,.12); }
+#slideShow .sl-prog i { display: block; height: 100%; background: #e08a1e; transition: width .5s ease; }
+@media (prefers-reduced-motion: reduce) { #slideShow .sl-cover { animation: none; } }
