@@ -113,23 +113,23 @@ const YearendPage = {
     st.slOpen = st.slOpen || {};
     const ov = () => { const ye = Store.data.settings.yearend; return ye.slides = ye.slides || {}; };
     const raw = Slides.build(st.sy, true);
-    const LISTS = { year: ['時期｜内容（1行＝1項目）', 6], money: ['見出し｜内容（1行＝1項目）', 6], flow: ['就職希望者の流れ　時期｜内容', 6], ask: ['ご家庭へのお願い（1行＝1項目）', 5] };
+    const LISTS = { year: ['時期｜内容（1行＝1項目）', 6], summary: ['進路指導の考え方（1行＝1項目）', 5] };
     const inp = (k, l, ph) => `<label class="field wide"><span class="label">${l}</span><input data-k="${k}" value="${esc(ov()[k] || '')}" placeholder="${esc(ph)}"></label>`;
     const area = k => `<label class="field wide"><span class="label">${LISTS[k][0]}</span><textarea data-k="${k}" rows="${LISTS[k][1]}" placeholder="${esc(Slides.DEF[k])}">${esc(ov()[k] || '')}</textarea></label>`;
     const editor = s => {
       const o = ov();
-      const common = s.cover ? `${inp('coverTitle', '表紙の題', Slides.coverTitle(Store.data.year))}${inp('cover1', '1行目', Slides.DEF.cover1)}${inp('cover2', '2行目（空欄＝自動）', '例：令和〇年度卒業予定者の進路状況と、進路指導のあらまし')}`
+      const common = s.cover ? `${inp('coverTitle', '表紙の題', Slides.coverTitle(Store.data.year))}<label class="field wide"><span class="label">1行目（対象に合わせて）</span><input data-k="cover1" list="slAud" value="${esc(ov().cover1 || '')}" placeholder="${esc(Slides.DEF.cover1)}"><datalist id="slAud"><option value="保護者の皆様へ"><option value="中学校の先生方へ"><option value="生徒の皆さんへ"></datalist></label>${inp('cover2', '2行目（空欄＝自動）', '例：令和〇年度卒業予定者の進路状況と、進路指導のあらまし')}`
         : `<label class="check"><input type="checkbox" data-hide="${s.id}" ${(o.hide || {})[s.id] ? '' : 'checked'}> このスライドを使う</label>
            <label class="field wide"><span class="label">題（空欄＝自動）</span><input data-title="${s.id}" value="${esc((o.titles || {})[s.id] || '')}" placeholder="${esc(s.def)}"></label>
            <label class="field wide"><span class="label">ひとこと（スライドの下に表示）</span><textarea data-memo="${s.id}" rows="2" placeholder="例：詳しくは個別面談でご説明します">${esc((o.memo || {})[s.id] || '')}</textarea></label>`;
-      const extra = s.id === 'year' ? area('year') : s.id === 'money' ? area('money') : s.id === 'flow' ? area('flow') + area('ask') : '';
+      const extra = s.id === 'year' ? area('year') : s.id === 'summary' ? area('summary') : '';
       return `<details class="sl-edit" data-open="${s.id}" ${st.slOpen[s.id] ? 'open' : ''}><summary>文面を直す</summary><div class="grid">${common}${extra}</div></details>`;
     };
     el.innerHTML = `<div class="toolbar"><label class="inline">使う数字 <select id="slSrc">${srcs.map(y => `<option value="${y}" ${y === st.sy ? 'selected' : ''}>${y === Store.data.year ? `今年度（${Yr.long(y)}・現状）` : `${Yr.long(y)}卒業生の実績`}</option>`).join('')}</select></label>
         <div class="seg" title="スライドの縦横比">${['16:9', '4:3'].map(r => `<button data-ratio="${r}" class="${Slides.ratio() === r ? 'on' : ''}">${r}</button>`).join('')}</div>
         <span class="sub" id="slCount"></span><span class="grow"></span>
         <button class="btn btn-sm" id="slReset">文面をすべて初期に戻す</button>
-        <button class="btn" id="slPrint">印刷・PDF</button><button class="btn" id="slDl" title="開くだけで発表できる HTML ファイル（動きつき）">ダウンロード</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
+        <button class="btn" id="slPrint">印刷・PDF</button><button class="btn" id="slPp" title="PowerPoint で開いて直せるファイル（グラフ・文字も編集できます）">PowerPoint（.pptx）</button><button class="btn" id="slDl" title="開くだけで発表できる HTML ファイル（動きつき）">HTMLで保存</button><button class="btn btn-primary" id="slShow">全画面で発表</button></div>
       <p class="help">進路決定と過去の実績から自動で作ります。数字を直すときは、［進路決定］や［過去の実績］を直してください。各スライドの右の「文面を直す」で、題・ひとこと・文章を変えられます（空欄＝初期の文）。発表では、スライドが順に入ってくる動きがつきます。</p>
       <div class="sl-rows">${raw.map(s => `<div class="sl-row" data-id="${s.id}"><div class="sl-thumb" title="クリックで、この枚から発表"><div class="sl-sc" style="transform:scale(.5)"></div><span class="sl-no"></span></div>${editor(s)}</div>`).join('')}</div>`;
     let htmls = [];
@@ -171,6 +171,7 @@ const YearendPage = {
     $$('[data-ratio]', el).forEach(b => b.addEventListener('click', () => { Store.data.settings.yearend.slideRatio = b.dataset.ratio; Store.changed(); UI.refresh(); }));
     $('#slShow', el).addEventListener('click', () => Slides.present(htmls, 0));
     $('#slPrint', el).addEventListener('click', () => Slides.print(htmls, `${Yr.long(Store.data.year)}進路説明会`));
+    $('#slPp', el).addEventListener('click', async () => { try { await Slides.pptx(st.sy, `${Yr.long(Store.data.year)}進路説明会`); UI.toast('PowerPoint ファイルを保存しました'); } catch (e) { UI.toast('PowerPoint を作れませんでした：' + e.message, 'error'); } });
     $('#slDl', el).addEventListener('click', () => Slides.download(htmls, `${Yr.long(Store.data.year)}進路説明会`));
   },
 

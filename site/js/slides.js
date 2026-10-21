@@ -25,31 +25,15 @@ const Slides = {
       '10〜12月｜内定・合格の発表。決まらない人は2次応募や一般選抜へ',
       '1〜3月｜一般選抜・進路決定の報告・卒業',
     ].join('\n'),
-    money: [
-      '入学金・授業料｜国公立か私立か、学部・学科によって大きく違います。募集要項で早めに確認を',
-      '奨学金｜日本学生支援機構などの貸与型・給付型があります。高校在学中に申し込む予約採用もあります',
-      '修学支援新制度｜条件を満たす世帯は、授業料・入学金の減免と給付型奨学金を受けられます',
-      '教育ローン｜国や金融機関の教育ローンもあります',
-      'ご相談｜費用が心配なときは、早めに担任・進路指導部へ',
-    ].join('\n'),
-    flow: [
-      '7月｜求人票の受付開始。校内に公開',
-      '夏休み｜職場見学・応募先の検討',
-      '9月上旬｜校内選考の後、応募書類を学校から企業へ',
-      '9月中旬〜｜採用試験（面接など）',
-      '10月〜｜採用内定。不採用でも2次応募で続けられます',
-    ].join('\n'),
-    ask: [
-      'お子さんの考えをよく聞き、一緒に話し合ってください',
-      '提出書類や面談の期限を、ご家庭でもご確認ください',
-      '学費・仕事・通勤など、不安なことは早めに担任・進路指導部へ',
-      '最後は本人が自分で決めることを、見守ってください',
+    summary: [
+      '一人ひとりの希望と適性をふまえて、進路を一緒に考えます',
+      '就職は、求人票・職場見学・校内選考で、学校が応募を支援します',
+      '進学は、指定校推薦・公募推薦・総合型選抜・一般選抜に対応します',
+      '早めの情報収集と、周りの人への相談が、納得できる進路につながります',
     ].join('\n'),
   },
   NOTES: {
     year: '行事の時期は年度により変わります。詳しくは学校からの配付資料でお知らせします。',
-    money: '制度や金額は変わることがあります。最新の情報は、各学校・機関でご確認ください。',
-    flow: '日付は年度により変わります。詳しくは学校からの配付資料でお知らせします。',
   },
 
   /** 利用者が直した文面（settings.yearend.slides） */
@@ -76,18 +60,28 @@ const Slides = {
   pct(a, t) { return t ? Math.round(a / t * 100) : 0; },
 
   /* ---------- 部品 ---------- */
+  PAL: ['#1f5f8b', '#2e7d4f', '#e08a1e', '#8a8576', '#7b5ea7', '#c0504d'],
   hbars(rows, unit = '人') {
     const max = Math.max(1, ...rows.map(r => r.v));
     return `<div class="sl-bars">${rows.map(r => `<div class="sl-br"><span class="sl-bl">${esc(r.l)}</span><span class="sl-bt"><i style="width:${(r.v / max * 100).toFixed(1)}%"></i></span><b>${r.v}${unit}</b></div>`).join('')}</div>`;
   },
-  tile(label, v, sub, cls) { return `<div class="sl-tile ${cls || ''}"><div class="sl-tl">${esc(label)}</div><div class="sl-tv">${v}<small>人</small></div><div class="sl-ts">${sub}</div></div>`; },
+  tile(label, v, sub, cls, unit = '人') { return `<div class="sl-tile ${cls || ''}"><div class="sl-tl">${esc(label)}</div><div class="sl-tv">${v}<small>${unit}</small></div><div class="sl-ts">${sub || ''}</div></div>`; },
+  /** 円グラフ（conic-gradient）＋凡例。items: [{l, v, c}] */
+  donut(items) {
+    const t = items.reduce((a, x) => a + x.v, 0);
+    if (!t) return '';
+    let acc = 0;
+    const stops = items.map((x, i) => { const a0 = acc / t * 360; acc += x.v; return `${x.c || this.PAL[i]} ${a0.toFixed(1)}deg ${(acc / t * 360).toFixed(1)}deg`; }).join(',');
+    return `<div class="sl-chart"><div class="sl-donut" style="background:conic-gradient(${stops})"><div class="sl-dc"><b>${t}</b><small>人</small></div></div>
+      <ul class="sl-leg">${items.map((x, i) => `<li><i style="background:${x.c || this.PAL[i]}"></i><span>${esc(x.l)}</span><b>${x.v}人</b><em>${this.pct(x.v, t)}％</em></li>`).join('')}</ul></div>`;
+  },
   chips(list, max) {
     const shown = list.slice(0, max);
     return `<div class="sl-chips">${shown.map(t => `<span>${esc(t)}</span>`).join('')}${list.length > max ? `<span class="more">ほか ${list.length - max}</span>` : ''}</div>`;
   },
   empty(msg) { return `<p class="sl-empty">${esc(msg)}</p>`; },
   /** 見出し＋説明の行 */
-  rowList(text) { return `<div class="sl-ex">${this.rows(text).map(([a, b]) => `<div class="sl-exr">${a ? `<b>${esc(a)}</b>` : ''}<span>${esc(b)}</span></div>`).join('')}</div>`; },
+  rowList(text) { const rs = this.rows(text); return `<div class="sl-ex${rs.length > 5 ? ' tight' : ''}">${rs.map(([a, b]) => `<div class="sl-exr">${a ? `<b>${esc(a)}</b>` : ''}<span>${esc(b)}</span></div>`).join('')}</div>`; },
 
   /* ---------- スライドの中身 ----------
      raw=true：直した文面・非表示を反映せず、全スライドの既定の題を返す（編集画面用） */
@@ -99,31 +93,41 @@ const Slides = {
     const ov = raw ? {} : this.ov(), T = (id, d) => (ov.titles && ov.titles[id]) || d;
     const out = [];
     const cnt = r => History.cnt(r, y);
-    const add = (id, title, body) => out.push({ id, title: T(id, title), def: title, body });
+    const add = (id, title, body, pp) => out.push({ id, title: T(id, title), def: title, body, pp });
+    const jobCount = isNow ? History.jobsTrend(1)[0].v : H.jobs[y] || 0;
+    const P = this.PAL;
 
     // 1 表紙
+    const cv1 = raw ? this.DEF.cover1 : this.coverLine('cover1');
+    const cv2 = raw || !(ov.cover2 || '').trim() ? (isNow ? `${yl}卒業予定者の進路状況` : `${yl}卒業生の進路実績`) + 'と、進路指導のあらまし' : ov.cover2;
+    const cv3 = `${sc.name || ''}${sc.dept ? '　' + sc.dept : ''}`;
     out.push({
-      id: 'cover', cover: true, def: `${Yr.long(FY)}　進路説明会`, title: raw ? `${Yr.long(FY)}　進路説明会` : this.coverTitle(FY),
-      body: `<p class="sl-c1">${esc(raw ? this.DEF.cover1 : this.coverLine('cover1'))}</p>
-        <p class="sl-c2">${esc(raw || !(ov.cover2 || '').trim() ? (isNow ? `${yl}卒業予定者の進路状況` : `${yl}卒業生の進路実績`) + 'と、進路指導のあらまし' : ov.cover2)}</p>
-        <p class="sl-c3">${esc(sc.name || '')}${sc.dept ? '　' + esc(sc.dept) : ''}</p>`,
+      id: 'cover', cover: true, def: `${Yr.long(FY)}　進路説明会`, title: raw ? `${Yr.long(FY)}　進路説明会` : this.coverTitle(FY), lines: [cv1, cv2, cv3],
+      body: `<p class="sl-c1">${esc(cv1)}</p><p class="sl-c2">${esc(cv2)}</p><p class="sl-c3">${esc(cv3)}</p>`,
     });
 
-    // 2 全体
+    // 2 全体：卒業者・就職者・進学者・求人票を、まとめて言える
     const actN = isNow ? Outcomes.summary().activeTotal : 0;
+    const tiles = [
+      { label: isNow ? '卒業予定者' : '卒業者', value: g.total, unit: '人', sub: actN ? `うち活動中 ${actN}人` : '', cls: 'c-all', c: '#1b4a6b', soft: '#e8edf2' },
+      { label: '就職者', value: g.job, unit: '人', sub: `${this.pct(g.job, g.total)}％`, cls: 'c-job', c: P[0], soft: '#e6eff6' },
+      { label: '進学者', value: g.edu, unit: '人', sub: `${this.pct(g.edu, g.total)}％`, cls: 'c-edu', c: P[1], soft: '#e5f2ea' },
+      { label: '求人票', value: jobCount, unit: '枚', sub: jobCount ? `${Yr.label(y)}年度に届いた数` : '未入力', cls: 'c-req', c: P[2], soft: '#fbf1dc' },
+    ];
+    const split = [{ l: '就職', v: g.job, c: P[0] }, { l: '進学', v: g.edu, c: P[1] }, { l: 'その他', v: g.other, c: P[3] }].filter(x => x.v);
     add('total', isNow ? `今年度の進路状況（${fmtWareki(todayISO())}現在）` : `${yl}卒業生の進路状況`,
-      `<div class="sl-tiles">
-          ${this.tile('就職', g.job, `${this.pct(g.job, g.total)}％　（学校斡旋 ${n.jobSchool}・斡旋外 ${n.jobOther}・公務 ${n.jobPublic}）`, 'c-job')}
-          ${this.tile('進学', g.edu, `${this.pct(g.edu, g.total)}％　（大学 ${n.univ}・短大 ${n.junior}・専門学校 ${n.senshu}・大学校等 ${n.college}${n.eduOther ? `・その他 ${n.eduOther}` : ''}）`, 'c-edu')}
-          ${this.tile('その他', g.other, `${this.pct(g.other, g.total)}％`, 'c-oth')}
-        </div>
-        <div class="sl-total">${isNow ? '卒業予定者' : '卒業者'}　<b>${g.total}</b> 人${actN ? `　／　うち就職・進学の活動中　<b>${actN}</b> 人` : ''}</div>`);
+      `<div class="sl-tiles sl-t4">${tiles.map(t => this.tile(t.label, t.value.toLocaleString('ja-JP'), t.sub, t.cls, t.unit)).join('')}</div>${this.donut(split)}`,
+      { t: 'stack', w: [1, 1.7], parts: [{ t: 'tiles', items: tiles }, { t: 'donut', items: split }] });
 
     // 3 3年生の1年間（文面を直せる）
-    add('year', '3年生の1年間の進路スケジュール', `${this.rowList(this.text('year'))}<p class="sl-note">${esc(this.NOTES.year)}</p>`);
+    add('year', '3年生の1年間の進路スケジュール', `${this.rowList(this.text('year'))}<p class="sl-note">${esc(this.NOTES.year)}</p>`,
+      { t: 'stack', w: [6, 0.6], parts: [{ t: 'rows', items: this.rows(this.text('year')) }, { t: 'note', text: this.NOTES.year }] });
 
-    // 4 進学の費用と支援制度（文面を直せる）
-    add('money', '進学にかかる費用と支援制度', `${this.rowList(this.text('money'))}<p class="sl-note">${esc(this.NOTES.money)}</p>`);
+    // 4 就職の内訳
+    const jk = [{ l: '学校斡旋', v: n.jobSchool, c: P[0] }, { l: '斡旋外（自己開拓・縁故など）', v: n.jobOther, c: P[2] }, { l: '公務', v: n.jobPublic, c: P[4] }].filter(x => x.v);
+    add('jobMix', `就職の内訳（${g.job}人）`,
+      jk.length ? `${this.donut(jk)}<p class="sl-note">学校斡旋：学校に届いた求人票で応募し、校内選考を経て受験する方法です。</p>` : this.empty('就職者がまだ入力されていません。'),
+      jk.length ? { t: 'stack', w: [6, 0.6], parts: [{ t: 'donut', items: jk }, { t: 'note', text: '学校斡旋：学校に届いた求人票で応募し、校内選考を経て受験する方法です。' }] } : { t: 'note', text: '就職者がまだ入力されていません。' });
 
     // 5 就職先の業種
     const work = History.merged('work').filter(r => cnt(r));
@@ -131,48 +135,66 @@ const Slides = {
     work.forEach(r => byInd.set(r.ind || '', (byInd.get(r.ind || '') || 0) + cnt(r)));
     const indRows = [...byInd.entries()].map(([k, v]) => ({ l: (OC.IND_NAMES[k] || 'その他').replace(/、/g, '・'), v })).sort((a, b) => b.v - a.v);
     add('ind', `学校斡旋で就職した人の業種（${work.reduce((t, r) => t + cnt(r), 0)}人）`,
-      indRows.length ? this.hbars(indRows.slice(0, 9)) : this.empty('就職先（学校斡旋）の決定がまだ入力されていません。'));
+      indRows.length ? this.hbars(indRows.slice(0, 9)) : this.empty('就職先（学校斡旋）の決定がまだ入力されていません。'),
+      indRows.length ? { t: 'bars', items: indRows.slice(0, 9), fmt: '0"人"' } : { t: 'note', text: '就職先（学校斡旋）の決定がまだ入力されていません。' });
 
     // 6 求人票数の推移
     const trend = Array.from({ length: 9 }, (_, i) => y - 8 + i).map(v => ({ y: v, v: v === FY ? History.jobsTrend(1)[0].v : H.jobs[v] || 0 }));
     const tmax = Math.max(1, ...trend.map(t => t.v));
     add('jobs', '本校に届いた求人票の数',
-      trend.some(t => t.v) ? `<div class="sl-cols">${trend.map(t => `<div class="sl-col"><b>${t.v ? t.v.toLocaleString('ja-JP') : '－'}</b><i style="height:${Math.round(t.v / tmax * 280)}px"></i><span>${Yr.label(t.y)}</span></div>`).join('')}</div><p class="sl-note">求人票は区分「一般」の枚数です。</p>` : this.empty('求人票数がまだ入力されていません。'));
+      trend.some(t => t.v) ? `<div class="sl-cols">${trend.map(t => `<div class="sl-col"><b>${t.v ? t.v.toLocaleString('ja-JP') : '－'}</b><i style="height:${Math.round(t.v / tmax * 280)}px"></i><span>${Yr.label(t.y)}</span></div>`).join('')}</div><p class="sl-note">求人票は区分「一般」の枚数です。</p>` : this.empty('求人票数がまだ入力されていません。'),
+      trend.some(t => t.v) ? { t: 'stack', w: [6, 0.5], parts: [{ t: 'colchart', items: trend.map(t => ({ l: Yr.label(t.y), v: t.v })), fmt: '#,##0' }, { t: 'note', text: '求人票は区分「一般」の枚数です。' }] } : { t: 'note', text: '求人票数がまだ入力されていません。' });
 
-    // 7 主な就職先
-    const names = [...work].sort((a, b) => (a.ind || '~').localeCompare(b.ind || '~') || (a.ord ?? 0) - (b.ord ?? 0)).map(r => r.name);
-    add('firms', '主な就職先（学校斡旋・順不同）', names.length ? this.chips(names, 30) : this.empty('就職先がまだ入力されていません。'));
+    // 7 主な就職先（産業分類別）
+    const grp = new Map();
+    [...work].sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)).forEach(r => { const k = r.ind || ''; (grp.get(k) || grp.set(k, []).get(k)).push(r.name); });
+    const groups = [...grp.entries()].sort((a, b) => b[1].length - a[1].length || (a[0] || '~').localeCompare(b[0] || '~'))
+      .map(([k, names]) => ({ h: (OC.IND_NAMES[k] || 'その他').replace(/、/g, '・'), names }));
+    const r43 = this.ratio() === '4:3', gMax = r43 ? 6 : 8, nMax = r43 ? 4 : 6;
+    const gShown = groups.slice(0, gMax);
+    add('firms', '主な就職先（産業分類別・順不同）',
+      gShown.length ? `<div class="sl-groups">${gShown.map(x => `<div class="sl-g"><h4>${esc(x.h)}　<small>${x.names.length}社</small></h4>${this.chips(x.names, nMax)}</div>`).join('')}</div>${groups.length > gMax ? `<p class="sl-note">ほか ${groups.length - gMax} 分類</p>` : ''}` : this.empty('就職先がまだ入力されていません。'),
+      gShown.length ? { t: 'groups', items: gShown.map(x => ({ h: `${x.h}（${x.names.length}社）`, names: x.names.slice(0, nMax).concat(x.names.length > nMax ? [`ほか${x.names.length - nMax}`] : []) })) } : { t: 'note', text: '就職先がまだ入力されていません。' });
 
-    // 8 進学
+    // 8 進学の内訳（校種・受験方法）
+    const lv = [{ l: '四年制大学', v: n.univ, c: P[0] }, { l: '短期大学', v: n.junior, c: P[1] }, { l: '専門学校', v: n.senshu, c: P[2] }, { l: '大学校・准看護', v: n.college, c: P[4] }, { l: 'その他', v: n.eduOther, c: P[3] }].filter(x => x.v);
+    const ex = isNow ? Outcomes.summary().exam : null;
+    const exTotal = m => ex ? Object.values(ex).reduce((t, e) => t + (e[m] || 0), 0) : 0;
+    const exRows = ['指定校推薦', '公募制推薦', '総合型選抜', '一般選抜'].map(m => ({ l: m, v: exTotal(m) }));
+    const hasEx = exRows.some(x => x.v);
+    const Mst = H.master, mc = k => Mst && Mst[k] ? new Set(Mst[k].map(r => r.name)).size : 0;
+    const mNote = Mst && (mc('univ') + mc('junior') + mc('senshu')) ? `本校への指定校推薦の依頼：四年制大学 ${mc('univ')}校・短期大学 ${mc('junior')}校・専修各種学校 ${mc('senshu')}校（${Yr.long(Mst.year)}）` : '';
+    add('eduMix', `進学の内訳（${g.edu}人）`,
+      lv.length ? `<div class="sl-two"><div><h3>進学先の種類</h3>${this.donut(lv)}</div>${hasEx ? `<div><h3>受験方法</h3>${this.hbars(exRows)}</div>` : ''}</div>${mNote ? `<p class="sl-note">${esc(mNote)}</p>` : ''}` : this.empty('進学者がまだ入力されていません。'),
+      lv.length ? { t: 'stack', w: [6, 0.5], parts: [{ t: 'cols', parts: [{ t: 'donut', items: lv, title: '進学先の種類' }].concat(hasEx ? [{ t: 'bars', items: exRows, fmt: '0"人"', title: '受験方法' }] : []) }, { t: 'note', text: mNote }] } : { t: 'note', text: '進学者がまだ入力されていません。' });
+
+    // 9 主な進学先
     const univ = History.merged('univ').filter(r => cnt(r)), senshu = History.merged('senshu').filter(r => cnt(r));
     const uni = [...new Set(univ.sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)).map(r => r.school))];
     const sen = [...new Set(senshu.sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)).map(r => r.name))];
-    add('edu', `進学した人の進路先（${g.edu}人）`,
+    add('eduSchools', '主な進学先（順不同）',
       `<div class="sl-two">
           <div><h3>大学・短期大学　<small>${n.univ + n.junior}人</small></h3>${uni.length ? this.chips(uni, 16) : this.empty('入力待ちです')}</div>
-          <div><h3>専門学校・大学校ほか　<small>${n.senshu + n.college + n.eduOther}人</small></h3>${sen.length ? this.chips(sen, 16) : this.empty('入力待ちです')}</div></div>`);
+          <div><h3>専門学校・大学校ほか　<small>${n.senshu + n.college + n.eduOther}人</small></h3>${sen.length ? this.chips(sen, 16) : this.empty('入力待ちです')}</div></div>`,
+      { t: 'cols', parts: [{ t: 'names', title: `大学・短期大学（${n.univ + n.junior}人）`, items: uni.slice(0, 16).concat(uni.length > 16 ? [`ほか${uni.length - 16}`] : []) }, { t: 'names', title: `専門学校・大学校ほか（${n.senshu + n.college + n.eduOther}人）`, items: sen.slice(0, 16).concat(sen.length > 16 ? [`ほか${sen.length - 16}`] : []) }] });
 
-    // 9 受験方法
-    const M = H.master, mc = k => M && M[k] ? new Set(M[k].map(r => r.name)).size : 0;
-    const ex = isNow ? Outcomes.summary().exam : null;
-    const exTotal = m => ex ? Object.values(ex).reduce((t, e) => t + (e[m] || 0), 0) : 0;
-    const exInfo = [['指定校推薦', '学校に届く推薦枠。評定などの基準があり、校内で選考します。'], ['公募制推薦', '出願条件を満たせば誰でも受けられる推薦。学校長の推薦が必要です。'], ['総合型選抜', '面接・小論文・活動実績などで人物を総合的に評価します。'], ['一般選抜', '学力試験で合否が決まります。']];
-    add('exam', '進学の受験方法',
-      `<div class="sl-ex">${exInfo.map(([m, t]) => `<div class="sl-exr"><b>${m}</b><span>${t}</span>${ex ? `<em>${exTotal(m)}人</em>` : ''}</div>`).join('')}</div>
-        ${M && (mc('univ') + mc('junior') + mc('senshu')) ? `<p class="sl-note">本校への指定校推薦の依頼：四年制大学 ${mc('univ')}校・短期大学 ${mc('junior')}校・専修各種学校 ${mc('senshu')}校（${Yr.long(M.year)}）</p>` : ''}`);
-
-    // 10 流れとお願い（文面を直せる）
-    add('flow', '就職希望者の流れと、ご家庭へのお願い',
-      `<div class="sl-two">
-          <div><h3>就職希望者の流れ（例年）</h3><ol class="sl-flow">${this.rows(this.text('flow')).map(([a, b]) => `<li>${a ? `<b>${esc(a)}</b>` : ''}${esc(b)}</li>`).join('')}</ol>
-            <p class="sl-note">${esc(this.NOTES.flow)}</p></div>
-          <div><h3>ご家庭へのお願い</h3><ul class="sl-ask">${this.rows(this.text('ask')).map(([a, b]) => `<li>${esc(a ? a + '　' + b : b)}</li>`).join('')}</ul></div></div>`);
+    // 10 総まとめ（保護者・中学校の先生・生徒のどれにも使える）
+    const pts = [];
+    if (g.job) pts.push(`就職者 ${g.job}人のうち、学校斡旋は ${n.jobSchool}人（${this.pct(n.jobSchool, g.job)}％）`);
+    if (indRows.length) pts.push(`就職先の業種は「${indRows[0].l}」が最も多い（${indRows[0].v}人）`);
+    if (lv.length) pts.push(`進学は「${lv.slice().sort((a, b) => b.v - a.v)[0].l}」が最も多い（${lv.slice().sort((a, b) => b.v - a.v)[0].v}人）`);
+    const nums = [[isNow ? '卒業予定者' : '卒業者', `${g.total}人`], ['就職者', `${g.job}人（${this.pct(g.job, g.total)}％）`], ['進学者', `${g.edu}人（${this.pct(g.edu, g.total)}％）`], ['求人票', jobCount ? `${jobCount.toLocaleString('ja-JP')}枚` : '－']];
+    const msgs = this.rows(this.text('summary')).map(([a, b]) => a ? a + '　' + b : b);
+    add('summary', '進路状況のまとめ',
+      `<div class="sl-two"><div><h3>数字で見る進路</h3><ul class="sl-leg sl-big">${nums.map(([a, b]) => `<li><span>${esc(a)}</span><b>${esc(b)}</b></li>`).join('')}</ul>${pts.length ? `<ul class="sl-pts">${pts.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</div>
+        <div><h3>進路指導の考え方</h3><ul class="sl-ask">${msgs.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div></div>`,
+      { t: 'cols', parts: [{ t: 'stack', w: [1, 1], parts: [{ t: 'rows', title: '数字で見る進路', items: nums }, { t: 'bullets', items: pts }] }, { t: 'bullets', title: '進路指導の考え方', items: msgs }] });
 
     if (raw) return out;
     // 非表示の枚を除き、ひとこと（補足）をつける
     const list = out.map(s => {
       const memo = ov.memo && String(ov.memo[s.id] || '').trim();
-      return Object.assign(s, { hidden: !!(ov.hide && ov.hide[s.id]) }, memo ? { body: s.body + `<div class="sl-memo">${esc(memo).replace(/\n/g, '<br>')}</div>` } : {});
+      return Object.assign(s, { hidden: !!(ov.hide && ov.hide[s.id]) }, memo ? { memo, body: s.body + `<div class="sl-memo">${esc(memo).replace(/\n/g, '<br>')}</div>` } : {});
     });
     return keepHidden ? list : list.filter(s => !s.hidden);
   },
@@ -189,7 +211,7 @@ const Slides = {
   all(y) { const ss = this.build(y); return ss.map((s, i) => this.slide(s, i, ss.length)); },
 
   /* ---------- 全画面で発表（動きつき。実体は slidesPlayer） ---------- */
-  ANIM: '.sl-h h2, .sl-cover h1, .sl-c1, .sl-c2, .sl-c3, .sl-tile, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty',
+  ANIM: '.sl-h h2, .sl-cover h1, .sl-c1, .sl-c2, .sl-c3, .sl-tile, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty, .sl-donut, .sl-leg li, .sl-g, .sl-pts li',
   present(htmls, start = 0) {
     if (!htmls.length) return;
     const ov = document.createElement('div');
@@ -203,6 +225,95 @@ const Slides = {
       player.destroy(); ov.remove();
     }
     try { ov.requestFullscreen().then(() => document.addEventListener('fullscreenchange', fs)).catch(() => {}); } catch (e) { /* 全画面にできなくても、重ね表示で発表できる */ }
+  },
+
+  /* ---------- PowerPoint（.pptx）：文字・図形・グラフはすべて PowerPoint で直せる ---------- */
+  async pptx(y, title) {
+    if (!window.PptxGenJS) throw new Error('PowerPoint 用の部品（lib/pptxgen.bundle.js）が読み込まれていません');
+    const ss = this.build(y);
+    if (!ss.length) return;
+    const sc = Store.data.settings.school, is43 = this.ratio() === '4:3';
+    const W = is43 ? 10 : 13.333, FONT = 'Yu Gothic', GAP = 0.3, hx = c => String(c).replace('#', ''), FS = is43 ? 16 : 18;
+    const pg = new window.PptxGenJS();
+    pg.layout = is43 ? 'LAYOUT_4x3' : 'LAYOUT_WIDE';
+    pg.title = title;
+    const txt = (sl, runs, r, o) => sl.addText(runs, Object.assign({ x: r.x, y: r.y, w: r.w, h: r.h, fontFace: FONT, fontSize: FS, color: '23262B', valign: 'top', margin: 0.05, paraSpaceAfter: 6 }, o || {}));
+    const head = t => ({ text: t, options: { bold: true, color: '1B4A6B', fontSize: FS + 2, breakLine: true } });
+    const chartBase = r => ({ x: r.x, y: r.y, w: r.w, h: r.h, fontFace: FONT, showLegend: false });
+    const place = (sl, p, r) => {
+      if (p.t === 'stack' || p.t === 'cols') {
+        const parts = p.parts.filter(q => !(q.t === 'note' && !q.text));
+        const ws = p.w || parts.map(() => 1), tot = ws.reduce((a, b) => a + b, 0), vert = p.t === 'stack';
+        const room = (vert ? r.h : r.w) - GAP * (parts.length - 1);
+        let pos = vert ? r.y : r.x;
+        parts.forEach((q, i) => {
+          const len = room * ws[i] / tot;
+          place(sl, q, vert ? { x: r.x, y: pos, w: r.w, h: len } : { x: pos, y: r.y, w: len, h: r.h });
+          pos += len + GAP;
+        });
+      } else if (p.t === 'tiles') {
+        const k = p.items.length, w = (r.w - 0.25 * (k - 1)) / k;
+        p.items.forEach((it, i) => {
+          const x = r.x + i * (w + 0.25), c = hx(it.c);
+          sl.addShape('rect', { x, y: r.y, w, h: r.h, fill: { color: hx(it.soft) }, line: { color: hx(it.soft) } });
+          sl.addShape('rect', { x, y: r.y, w, h: 0.08, fill: { color: c }, line: { color: c } });
+          txt(sl, it.label, { x: x + 0.12, y: r.y + 0.15, w: w - 0.24, h: 0.4 }, { fontSize: 16, bold: true, color: c });
+          txt(sl, [{ text: String(it.value.toLocaleString('ja-JP')), options: { fontSize: is43 ? 34 : 44, bold: true, color: c } }, { text: it.unit, options: { fontSize: 16, color: c } }], { x: x + 0.12, y: r.y + 0.55, w: w - 0.24, h: 0.9 }, { valign: 'middle' });
+          if (it.sub) txt(sl, it.sub, { x: x + 0.12, y: r.y + 1.45, w: w - 0.24, h: Math.max(0.3, r.h - 1.5) }, { fontSize: 12, color: '4A4E55' });
+        });
+      } else if (p.t === 'donut') {
+        sl.addChart(pg.charts.DOUGHNUT, [{ name: '人数', labels: p.items.map(x => `${x.l} ${x.v}人`), values: p.items.map(x => x.v) }],
+          Object.assign(chartBase(r), { holeSize: 52, chartColors: p.items.map(x => hx(x.c)), showLegend: true, legendPos: 'r', legendFontSize: 16, legendFontFace: FONT, showPercent: true, showValue: false, showLabel: false, dataLabelColor: 'FFFFFF', dataLabelFontSize: 14, dataLabelFontBold: true, showTitle: !!p.title, title: p.title || '', titleFontSize: 18, titleFontFace: FONT, titleColor: '1B4A6B' }));
+      } else if (p.t === 'bars') {
+        sl.addChart(pg.charts.BAR, [{ name: '人数', labels: p.items.map(x => x.l), values: p.items.map(x => x.v) }],
+          Object.assign(chartBase(r), { barDir: 'bar', catAxisOrientation: 'maxMin', chartColors: ['1F5F8B'], showValue: true, dataLabelFontSize: 14, dataLabelFormatCode: p.fmt || '0', dataLabelPosition: 'outEnd', catAxisLabelFontSize: 14, catAxisLabelFontFace: FONT, valAxisHidden: true, valGridLine: { style: 'none' }, barGapWidthPct: 40, showTitle: !!p.title, title: p.title || '', titleFontSize: 18, titleFontFace: FONT, titleColor: '1B4A6B' }));
+      } else if (p.t === 'colchart') {
+        sl.addChart(pg.charts.BAR, [{ name: '数', labels: p.items.map(x => x.l), values: p.items.map(x => x.v) }],
+          Object.assign(chartBase(r), { barDir: 'col', chartColors: ['1F5F8B'], showValue: true, dataLabelFontSize: 14, dataLabelFormatCode: p.fmt || '0', dataLabelPosition: 'outEnd', catAxisLabelFontSize: 14, catAxisLabelFontFace: FONT, valAxisHidden: true, valGridLine: { style: 'none' }, barGapWidthPct: 40 }));
+      } else if (p.t === 'rows') {
+        const runs = p.title ? [head(p.title)] : [];
+        p.items.forEach(([a, b]) => { if (a) runs.push({ text: a, options: { bold: true, color: '1B4A6B' } }, { text: '　' + b, options: { breakLine: true } }); else runs.push({ text: b, options: { breakLine: true } }); });
+        txt(sl, runs, r);
+      } else if (p.t === 'bullets') {
+        const runs = p.title ? [head(p.title)] : [];
+        p.items.forEach(t => runs.push({ text: t, options: { bullet: true, breakLine: true } }));
+        txt(sl, runs, r);
+      } else if (p.t === 'names') {
+        txt(sl, [head(p.title), { text: p.items.join('、'), options: { breakLine: true } }], r);
+      } else if (p.t === 'groups') {
+        const half = Math.ceil(p.items.length / 2), w = (r.w - GAP) / 2;
+        [p.items.slice(0, half), p.items.slice(half)].forEach((list, i) => {
+          const runs = [];
+          list.forEach(x => runs.push({ text: x.h, options: { bold: true, color: '1B4A6B', fontSize: FS - 1, breakLine: true } }, { text: x.names.join('、'), options: { fontSize: FS - 3, breakLine: true } }));
+          txt(sl, runs, { x: r.x + i * (w + GAP), y: r.y, w, h: r.h }, { paraSpaceAfter: 8 });
+        });
+      } else if (p.t === 'note') {
+        txt(sl, p.text, r, { fontSize: 12, color: '6A6E75' });
+      }
+    };
+    ss.forEach((s, i) => {
+      const sl = pg.addSlide();
+      if (s.cover) {
+        sl.background = { color: '1F5F8B' };
+        txt(sl, s.title, { x: 0.9, y: 1.7, w: W - 1.8, h: 1.2 }, { fontSize: is43 ? 38 : 48, bold: true, color: 'FFFFFF', valign: 'middle' });
+        txt(sl, s.lines[0], { x: 0.9, y: 3.1, w: W - 1.8, h: 0.6 }, { fontSize: 26, color: 'FFFFFF' });
+        txt(sl, s.lines[1], { x: 0.9, y: 3.8, w: W - 1.8, h: 0.6 }, { fontSize: 20, color: 'E6EFF6' });
+        sl.addShape('line', { x: 0.9, y: 5.4, w: W - 1.8, h: 0, line: { color: 'FFFFFF', width: 1.5 } });
+        txt(sl, s.lines[2], { x: 0.9, y: 5.5, w: W - 1.8, h: 0.5 }, { fontSize: 18, color: 'E6EFF6' });
+        return;
+      }
+      txt(sl, s.title, { x: 0.55, y: 0.3, w: W - 1.1, h: 0.85 }, { fontSize: is43 ? 26 : 30, bold: true, color: '1B4A6B', valign: 'middle' });
+      sl.addShape('rect', { x: 0.55, y: 1.18, w: W - 1.1, h: 0.05, fill: { color: '1F5F8B' }, line: { color: '1F5F8B' } });
+      const memo = s.memo ? 0.6 : 0;
+      place(sl, s.pp, { x: 0.55, y: 1.45, w: W - 1.1, h: 5.2 - memo });
+      if (s.memo) {
+        sl.addShape('rect', { x: 0.55, y: 6.05, w: W - 1.1, h: 0.55, fill: { color: 'FFF4D6' }, line: { color: 'FFF4D6' } });
+        txt(sl, s.memo, { x: 0.65, y: 6.05, w: W - 1.3, h: 0.55 }, { fontSize: 14, valign: 'middle' });
+      }
+      txt(sl, sc.name || '', { x: 0.55, y: 6.95, w: W / 2, h: 0.35 }, { fontSize: 11, color: '8A8576' });
+      txt(sl, `${i + 1} / ${ss.length}`, { x: W - 2.55, y: 6.95, w: 2, h: 0.35 }, { fontSize: 11, color: '8A8576', align: 'right' });
+    });
+    await pg.writeFile({ fileName: `${title}.pptx` });
   },
 
   /** ダウンロード：開くだけで発表できる HTML 1ファイル（動きつき・通信なし） */

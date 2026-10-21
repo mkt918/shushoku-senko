@@ -97,9 +97,9 @@ const SLIDE_CSS = `
 @keyframes slLine { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 #slideShow .sl.play-r { animation: slInR .55s cubic-bezier(.2,.7,.2,1) both; }
 #slideShow .sl.play-l { animation: slInL .55s cubic-bezier(.2,.7,.2,1) both; }
-#slideShow .sl[class*="play-"] :is(.sl-h h2, .sl-c1, .sl-c2, .sl-c3, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty) { animation: slUp .65s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * .07s); }
+#slideShow .sl[class*="play-"] :is(.sl-h h2, .sl-c1, .sl-c2, .sl-c3, .sl-total, .sl-br, .sl-exr, .sl-flow li, .sl-ask li, .sl-chips span, .sl-col, .sl-two h3, .sl-note, .sl-memo, .sl-empty, .sl-leg li, .sl-g, .sl-pts li) { animation: slUp .65s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * .07s); }
 #slideShow .sl[class*="play-"] .sl-cover h1, #slideShow .sl-cover[class*="play-"] h1 { animation: slUp .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: .1s; }
-#slideShow .sl[class*="play-"] .sl-tile { animation: slPop .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * .18s); }
+#slideShow .sl[class*="play-"] :is(.sl-tile, .sl-donut) { animation: slPop .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * .18s); }
 #slideShow .sl[class*="play-"] .sl-bt i { transform-origin: left; animation: slGrowX 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.35s + var(--i, 0) * .07s); }
 #slideShow .sl[class*="play-"] .sl-col i { transform-origin: bottom; animation: slGrowY .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(.35s + var(--i, 0) * .07s); }
 #slideShow .sl[class*="play-"] .sl-h { position: relative; }
@@ -135,5 +135,65 @@ const SLIDE_CSS = `
 .sl-43 .sl-exr b { width: 150px; font-size: 23px; }
 .sl-43 .sl-chips span { font-size: 20px; }
 .sl-43 .sl-two .sl-chips span { font-size: 17px; }
+
+/* ---------- 全体の4つの数字・円グラフ・産業分類別の就職先・まとめ ---------- */
+.sl .c-all, .sl-tile.c-all { --c: #1b4a6b; --cs: #e8edf2; }
+.sl .c-req, .sl-tile.c-req { --c: #e08a1e; --cs: #fbf1dc; }
+.sl-t4 { gap: 20px; }
+.sl-t4 .sl-tv { font-size: 64px; }
+.sl-t4 .sl-tv small { font-size: 24px; }
+.sl-t4 .sl-ts { min-height: 24px; font-size: 16px; }
+.sl-t4 .sl-tile { padding: 16px 20px 12px; }
+.sl-chart { display: flex; align-items: center; justify-content: center; gap: 56px; margin-top: 18px; }
+.sl-donut { width: 270px; height: 270px; border-radius: 50%; position: relative; flex: none; }
+.sl-donut::after { content: ''; position: absolute; inset: 62px; background: #fff; border-radius: 50%; }
+.sl-dc { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.sl-dc b { font-size: 52px; color: #1b4a6b; }
+.sl-dc small { font-size: 18px; color: #6a6e75; }
+.sl-leg { list-style: none; margin: 0; padding: 0; min-width: 380px; }
+.sl-leg li { display: flex; align-items: center; gap: 12px; font-size: 26px; padding: 7px 0; border-bottom: 1px solid #e8e6df; }
+.sl-leg li i { width: 22px; height: 22px; border-radius: 4px; flex: none; }
+.sl-leg li span { flex: 1; }
+.sl-leg li b { font-variant-numeric: tabular-nums; }
+.sl-leg li em { font-style: normal; width: 76px; text-align: right; color: #6a6e75; font-size: 22px; }
+.sl-leg.sl-big li { font-size: 28px; }
+.sl-leg.sl-big li b { color: #1b4a6b; }
+.sl-pts { margin: 16px 0 0; padding-left: 24px; font-size: 21px; color: #3a3e45; }
+.sl-pts li { margin-bottom: 8px; }
+.sl-groups { column-count: 2; column-gap: 40px; }
+.sl-g { break-inside: avoid; margin-bottom: 14px; }
+.sl-g h4 { margin: 0 0 6px; font-size: 22px; color: #1b4a6b; }
+.sl-g h4 small { font-size: 16px; color: #6a6e75; font-weight: 400; }
+.sl-g .sl-chips span { font-size: 17px; padding: 3px 12px; }
+.sl-two .sl-chart { flex-direction: column; gap: 14px; margin-top: 4px; }
+.sl-two .sl-donut { width: 220px; height: 220px; }
+.sl-two .sl-donut::after { inset: 50px; }
+.sl-two .sl-dc b { font-size: 42px; }
+.sl-two .sl-leg { min-width: 0; width: 100%; }
+.sl-two .sl-leg li { font-size: 21px; padding: 4px 0; }
+.sl-two .sl-bl { width: 170px; font-size: 21px; }
+.sl-43 .sl-t4 { gap: 12px; }
+.sl-43 .sl-t4 .sl-tv { font-size: 46px; }
+.sl-43 .sl-t4 .sl-tv small { font-size: 18px; }
+.sl-43 .sl-t4 .sl-tl { font-size: 22px; }
+.sl-43 .sl-t4 .sl-tile { padding: 14px 12px 10px; }
+.sl-43 .sl-t4 .sl-ts { font-size: 13px; }
+.sl-43 .sl-chart { gap: 28px; }
+.sl-43 .sl-leg { min-width: 300px; }
+.sl-43 .sl-leg li { font-size: 22px; }
+.sl-43 .sl-donut { width: 230px; height: 230px; }
+.sl-43 .sl-donut::after { inset: 52px; }
+.sl-43 .sl-two .sl-donut { width: 190px; height: 190px; }
+.sl-43 .sl-two .sl-donut::after { inset: 44px; }
+.sl-43 .sl-groups { column-gap: 24px; }
+.sl-43 .sl-leg.sl-big li { font-size: 22px; }
+.sl-43 .sl-pts { font-size: 18px; }
+
+.sl-ex.tight { gap: 8px; }
+.sl-ex.tight .sl-exr { padding: 8px 20px; font-size: 19px; line-height: 1.3; }
+.sl-ex.tight .sl-exr b { font-size: 21px; width: 140px; }
+.sl-ex.tight + .sl-note { margin-top: 10px; }
+.sl-43 .sl-ex.tight .sl-exr { font-size: 17px; padding: 7px 14px; }
+.sl-43 .sl-ex.tight .sl-exr b { font-size: 19px; width: 110px; }
 `;
 (function () { const st = document.createElement('style'); st.id = 'slideCss'; st.textContent = SLIDE_CSS; document.head.appendChild(st); })();
