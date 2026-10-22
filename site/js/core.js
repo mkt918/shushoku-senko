@@ -443,8 +443,12 @@ const Crypt = {
   /** 暗号化したものを開く。パスワードが違うと例外 */
   async open(w, pass) {
     const c = await this.setup(pass, w.salt, w.iter || this.ITER);
+    return { data: await this.openWith(w, c), c };
+  },
+  /** 作ってある鍵（c）で開く。鍵が合わないと例外 */
+  async openWith(w, c) {
     const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.unb64(w.iv) }, c.key, this.unb64(w.data));
-    return { data: JSON.parse(new TextDecoder().decode(pt)), c };
+    return JSON.parse(new TextDecoder().decode(pt));
   },
   isEnc(o) { return !!(o && o.app === 'shushoku-senko' && o.enc && o.data && o.iv && o.salt); },
 };
@@ -460,11 +464,13 @@ const Store = {
   crypt: null,        // 暗号化して保存するときの鍵（{ key, salt, iter }）。null＝暗号化しない
   listeners: [],
   _timer: null,
+  readOnly: false,    // 閲覧専用（共有データを見るだけ。share.js が設定する）
 
   on(fn) { this.listeners.push(fn); },
   emit() { this.listeners.forEach(fn => fn()); },
 
   init() {
+    if (this.readOnly) { this.data = blankData(); return { restored: false }; }   // 閲覧専用は、このブラウザの一時保存を使わない
     const saved = this._readAutosave();
     if (saved && saved.enc) {           // 暗号化した一時保存は、パスワードを聞いてから復元する（app.js）
       this.data = blankData();
@@ -484,6 +490,7 @@ const Store = {
 
   /** 変更を通知（呼び出し側でデータを書き換えた後に呼ぶ） */
   changed() {
+    if (this.readOnly) { Share.reject(); return; }
     this.data.updatedAt = new Date().toISOString();
     this.dirty = true;
     clearTimeout(this._timer);
@@ -496,6 +503,7 @@ const Store = {
     catch (e) { return null; }
   },
   _writeAutosave() {
+    if (this.readOnly) return;
     const meta = { savedAt: new Date().toISOString(), fileName: this.fileName, dirty: this.dirty };
     if (this.crypt) {                   // 暗号化の設定があるときは、一時保存も暗号化する
       const c = this.crypt;
@@ -527,6 +535,7 @@ const Store = {
   newFile(year) { this.replace(blankData(year)); this.dirty = true; this._writeAutosave(); this.emit(); },
 
   async open() {
+    if (this.readOnly) return false;
     if (window.showOpenFilePicker) {
       try {
         const [h] = await window.showOpenFilePicker({ types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
@@ -579,6 +588,7 @@ const Store = {
   },
 
   async save() {
+    if (this.readOnly) return false;
     if (this.fileHandle) {
       try {
         const body = await this._payload();
@@ -597,6 +607,7 @@ const Store = {
   },
 
   async saveAs() {
+    if (this.readOnly) return false;
     const name = this.fileName || this.defaultFileName();
     if (window.showSaveFilePicker) {
       try {
@@ -627,6 +638,7 @@ const Store = {
   _backup(body) {
     if (typeof Backup === 'undefined') return;
     Backup.after(body, this.fileName).then(n => { if (n && typeof UI !== 'undefined') UI.toast('バックアップ：' + n); }).catch(e => console.warn(e));
+    if (typeof Share !== 'undefined') Share.after(body).catch(e => console.warn(e));   // 共有フォルダへの公開
   },
 };
 

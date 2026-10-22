@@ -84,6 +84,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: 10px 28px; background: rgba(244, 243, 239, .92); backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--line);
 }
+/* 閲覧専用（共有データを見るだけ）：保存の操作は出さない */
+.view-only .top-actions { display: none; }
 .file-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
 .file-label { font-size: 12px; color: var(--ink-3); }
 .file-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }

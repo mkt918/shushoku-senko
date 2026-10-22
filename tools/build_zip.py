@@ -58,7 +58,7 @@ def files():
         dn[:] = [d for d in dn if not d.startswith('.')]
         for f in fs:
             full = os.path.join(dp, f)
-            if os.path.splitext(f)[1].lower() in BAD_EXT:
+            if os.path.splitext(f)[1].lower() in BAD_EXT or f == 'shared-data.js':
                 fail(f'配布に入れてはいけない種類のファイルがあります：{full}')
             out.append((full, os.path.relpath(full, ROOT).replace(os.sep, '/')))
     out.append((os.path.join(ROOT, '起動.bat'), '起動.bat'))

@@ -58,6 +58,7 @@ const UI = {
   renderFileBar() {
     const d = Store.data;
     $('#yearLabel').textContent = nendoLabel(d.year);
+    if (Store.readOnly) { Share._bar(); return; }     // 閲覧専用：最終更新の時刻を出す
     $('#fileName').textContent = Store.fileName || '（未保存の新規データ）';
     const st = $('#saveState');
     st.textContent = Store.dirty ? '未保存の変更あり' : '保存済み';

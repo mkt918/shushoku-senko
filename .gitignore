@@ -15,6 +15,7 @@
 
 # 念のため：許可した場所の中でも、データになりうるものは無視する
 *.json
+shared-data.js
 *.xlsx
 *.xlsm
 *.xls

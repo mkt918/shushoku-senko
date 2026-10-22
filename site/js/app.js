@@ -45,7 +45,7 @@ function main() {
   });
   window.addEventListener('hashchange', () => UI.route());
 
-  UI.route();
+  if (Share.viewer) Share.boot(); else UI.route();   // 閲覧専用は、共有データを読み込んでから画面を出す
   if (r.restored && Store.dirty) {
     UI.toast('前回の作業内容を復元しました（ファイルには未保存です）', 'warn');
   }

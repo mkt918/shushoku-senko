@@ -138,6 +138,15 @@ const Settings = {
       </section>
 
       <section class="card">
+        <h2>みんなで見る（共有フォルダに公開）</h2>
+        ${Share.supported() ? `<p>公開するフォルダ：<b id="shName">確認中…</b></p>
+        <p class="help">SharePoint の同期フォルダの中に、このツールの <b>site フォルダ</b>を置き、ここでそのフォルダを一度だけ選びます。以後、<b>［上書き保存］のたびに</b>最新のデータが自動で公開されます。ほかの先生は、同じフォルダの<b>「閲覧.html」をダブルクリックするだけ</b>で、いつでも最新の内容を見られます（閲覧専用。約30秒ごとに自動で更新）。編集できるのは、ここで公開する人だけです。</p>
+        <p class="help">${Store.crypt ? '暗号化の設定があるので、公開されるデータも暗号化されます。閲覧する人は、最初の1回だけパスワードを入れます。' : '<b>暗号化していません。</b>共有フォルダを見られる人は、中身をすべて読めます。生徒の個人情報が入るので、下の「データの暗号化」を設定してから公開することをおすすめします。'}</p>
+        <div class="btn-row"><button class="btn btn-primary" id="shChoose">フォルダを選ぶ</button><button class="btn" id="shNow">今すぐ公開</button><button class="btn btn-danger-ghost" id="shOff">公開をやめる</button></div>`
+          : '<p class="help">このブラウザでは使えません（Edge／Chrome で開いてください）。</p>'}
+      </section>
+
+      <section class="card">
         <h2>データの暗号化（保存ファイルにパスワード）</h2>
         ${Crypt.ok() ? `<p>今の状態：<b>${Store.crypt ? '暗号化して保存します' : '暗号化していません'}</b></p>
         <p class="help">暗号化すると、保存した JSON ファイルとこのブラウザの一時保存が、パスワードなしでは読めなくなります（AES-GCM）。USB の紛失などに備えられます。<b>パスワードを忘れると、ファイルは二度と開けません。</b>紙に書いて、決められた場所に保管してください。設定したら「上書き保存」をすると、ファイルが暗号化されます。</p>
@@ -218,6 +227,31 @@ const Settings = {
       $('#bkOff', view).addEventListener('click', async () => {
         if (!await UI.confirm('自動バックアップをやめます（フォルダの中のバックアップは消えません）。', { ok: 'やめる' })) return;
         await Backup.forget(); showBk();
+      });
+    }
+    // 共有フォルダへの公開
+    if (Share.supported()) {
+      const showSh = async () => {
+        const h = await Share.folder(), el = $('#shName', view); if (!el) return;
+        if (!h) { el.textContent = '未設定'; $('#shNow', view).disabled = true; $('#shOff', view).disabled = true; return; }
+        const at = await Share.publishedAt(h);
+        el.textContent = `${h.name}${at ? `　最後に公開：${Share._stamp(at)}` : '（次の保存のときに、書き込みの許可を聞きます）'}`;
+      };
+      showSh();
+      $('#shChoose', view).addEventListener('click', async () => {
+        try {
+          const r = await Share.choose();
+          UI.toast(`公開するフォルダを「${r.handle.name}」にしました`);
+          if (!r.hasApp) UI.toast('このフォルダには index.html がありません。site フォルダ（index.html と 閲覧.html のあるフォルダ）を選び直してください', 'warn');
+          showSh();
+        } catch (e) { if (e.name !== 'AbortError') UI.toast('フォルダを選べませんでした', 'warn'); }
+      });
+      $('#shNow', view).addEventListener('click', async () => {
+        if (await Share.after(await Store._payload(), true)) showSh();
+      });
+      $('#shOff', view).addEventListener('click', async () => {
+        if (!await UI.confirm('公開をやめます（フォルダの中の shared-data.js は消えません。消すと、閲覧する人には何も表示されなくなります）。', { ok: 'やめる' })) return;
+        await Share.forget(); showSh();
       });
     }
     // 暗号化
