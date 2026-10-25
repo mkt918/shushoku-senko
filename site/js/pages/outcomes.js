@@ -22,12 +22,19 @@ const OutcomesPage = {
         ${stat('決定', cnt(x => x.d.type && x.d.status === '決定'))}${stat('活動中', cnt(x => x.d.type && x.d.status === '活動中'))}${stat('未入力', cnt(x => !x.d.type))}
         ${stat('就職', sm.all.jobSchool + sm.all.jobOther + sm.all.jobPublic)}${stat('進学', sm.all.univ + sm.all.junior + sm.all.senshu + sm.all.college + sm.all.nurse + sm.all.eduOther)}
       </div>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn" id="ocImpS">進学を取り込む</button><button class="btn" id="ocImpJ">就職を取り込む</button><button class="btn" id="ocTpl">取り込み用CSVの様式をダウンロード</button>
+      </div>
       <div class="toolbar">
         <input type="search" id="ocQ" class="grow" placeholder="番号・氏名・進路先で検索" value="${esc(st.q)}">
         <select id="ocF">${[['', 'すべて'], ['未', '未入力'], ['活', '活動中'], ['就職', '就職'], ['進学', '進学'], ['その他', 'その他']].map(([v, l]) => `<option value="${v}" ${st.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <select id="ocD"><option value="">学科：すべて</option>${depts.map(d => `<option ${st.dept === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
       </div>
       <div id="ocTable"></div>`;
+    const imp = t => async () => { if (Excel.ok()) await Importer.run(t); };
+    $('#ocImpS', view).addEventListener('click', imp('outShingaku'));
+    $('#ocImpJ', view).addEventListener('click', imp('outShushoku'));
+    $('#ocTpl', view).addEventListener('click', () => Importer.templates(['outShingaku', 'outShushoku']));
     const redraw = () => this.draw($('#ocTable', view));
     $('#ocQ', view).addEventListener('input', e => { st.q = e.target.value; redraw(); });
     $('#ocF', view).addEventListener('change', e => { st.f = e.target.value; redraw(); });
@@ -37,7 +44,7 @@ const OutcomesPage = {
 
   desc(d) {
     if (d.type === '就職') return [d.jobKind, d.company, d.ind ? OC.IND_NAMES[d.ind] : '', d.jobTitle].filter(Boolean).join('　');
-    if (d.type === '進学') return [OC.levelName(d.level), d.school, [d.faculty, d.dept].filter(Boolean).join(' '), d.exam].filter(Boolean).join('　');
+    if (d.type === '進学') return [OC.levelName(d.level), d.school, [d.faculty, d.dept, d.major].filter(Boolean).join(' '), d.exam, d.remarks].filter(Boolean).join('　');
     if (d.type === 'その他') return d.note || '';
     return '';
   },
@@ -96,6 +103,8 @@ const OutcomesPage = {
         ${f('学校名', inp('school', cur.school, '候補から選べます', 'dlSchool'), 'wide')}
         ${f('学部（短大は学科）', inp('faculty', cur.faculty, '', 'dlFac'))}
         ${f('学科（短大は専攻・コース）', inp('dept', cur.dept, '', 'dlDept'))}
+        ${f('専攻・専修・コース等', inp('major', cur.major))}
+        ${f('備考', inp('remarks', cur.remarks), 'wide')}
         ${f('専修・各種の分野', sel('field', [['', '（自動／未設定）'], ...this.fields().map(x => [x, x])], cur.field), 'wide')}</div></div>
       <div class="oc-sec" data-sec="その他"><h3>その他</h3><div class="grid">${f('内容', inp('note', cur.note, '例：家事手伝い・未定'), 'wide')}</div></div>
       <datalist id="dlWork"></datalist><datalist id="dlSchool"></datalist><datalist id="dlFac"></datalist><datalist id="dlDept"></datalist>`;
@@ -124,7 +133,7 @@ const OutcomesPage = {
       else {
         const d = { type: v.type, status: v.status || '決定' };
         if (v.type === '就職') Object.assign(d, { jobKind: v.jobKind, company: v.company, companyFull: v.companyFull, ind: v.ind, occ: v.occ, jobTitle: v.jobTitle });
-        if (v.type === '進学') Object.assign(d, { level: v.level, exam: v.exam, school: v.school, faculty: v.faculty, dept: v.dept, field: v.field });
+        if (v.type === '進学') Object.assign(d, { level: v.level, exam: v.exam, school: v.school, faculty: v.faculty, dept: v.dept, major: v.major, remarks: v.remarks, field: v.field });
         if (v.type === 'その他') d.note = v.note;
         s.dest = d;
       }

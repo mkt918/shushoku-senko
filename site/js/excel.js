@@ -88,6 +88,13 @@ const Excel = {
     ]);
   },
 
+  /** CSV で出力（Excel でそのまま開けるよう、BOM 付き UTF-8・改行は CRLF） */
+  downloadCsv(fileName, rows) {
+    const q = v => { const t = v == null ? '' : String(v); return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const text = '\ufeff' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
+    downloadBlob(new Blob([text], { type: 'text/csv;charset=utf-8' }), fileName);
+  },
+
   /** 出力：sheets = [{ name, rows: [[...]], widths: [..] }] */
   download(fileName, sheets) {
     if (!this.ok()) return;
@@ -174,6 +181,70 @@ function matchSelectionJob(sl) {
 }
 
 const SELECTION_SPECIAL = { '自己開拓': '自己開拓', '公務員': '公務員', '家事手伝': '家事手伝い', '家事手伝い': '家事手伝い', '選考見送り': '' };
+
+
+/* ============================================================
+   進路決定の取り込み（進学・就職は別々）。CSV／Excel どちらも読める
+   ============================================================ */
+const OutImport = {
+  /** 校種：「大学」「短大」「専門学校」などの文字、なければ学校名から推測。分からなければ ''、不正なら null */
+  level(raw, school) {
+    const guess = t => /短期大|短大/.test(t) ? 'junior' : /大学校/.test(t) ? 'college' : /四大|4大|四年|大学/.test(t) ? 'univ' : /准看護/.test(t) ? 'nurse'
+      : /専門|専修|各種|学院|カレッジ|アカデミー|スクール/.test(t) ? 'senshu' : /その他/.test(t) ? 'eduOther' : '';
+    const t = Excel.norm(raw);
+    if (t) {
+      const hit = OC.LEVELS.find(([k, n]) => k === t || n === t);
+      return hit ? hit[0] : (guess(t) || null);
+    }
+    return guess(Excel.norm(school));
+  },
+  /** 方法：総合型・指定校・AO・公募型・一般 → 受験方法の名前。空欄は ''、不明は null */
+  exam(raw) {
+    const t = Excel.norm(raw).toUpperCase();
+    if (!t) return '';
+    return /指定/.test(t) ? '指定校推薦' : /公募/.test(t) ? '公募制推薦' : /総合|AO/.test(t) ? '総合型選抜' : /一般/.test(t) ? '一般選抜' : null;
+  },
+  /** 状態：空欄は 決定。不明は null */
+  status(raw) {
+    const t = Excel.norm(raw);
+    return !t || /^決定/.test(t) ? '決定' : /活動|未/.test(t) ? '活動中' : null;
+  },
+  /** 記号（A〜T）または名前から記号を探す。空欄は ''、不明は null */
+  letter(raw, names) {
+    const t = Excel.norm(raw);
+    if (!t) return '';
+    const up = t.toUpperCase();
+    if (names[up]) return up;
+    const hit = Object.entries(names).find(([, n]) => Excel.norm(n) === t) || Object.entries(names).find(([, n]) => t.length >= 2 && Excel.norm(n).includes(t));
+    return hit ? hit[0] : null;
+  },
+  /** 就職の種別。空欄は学校斡旋、不明は null */
+  kind(raw) {
+    const t = Excel.norm(raw);
+    if (!t) return '学校斡旋';
+    return /公務/.test(t) ? '公務' : /斡旋外|縁故|自己開拓|自営|家事/.test(t) ? '斡旋外' : /斡旋/.test(t) ? '学校斡旋' : null;
+  },
+  /** 番号を読む（名簿にない番号は読み飛ばす）。読めなければ '' */
+  rowNo(r, c, hi, i, skipped) {
+    const no3 = studentNo(r[c.no3]);
+    if (!no3) { const why = badStudentNo(r[c.no3]); if (why) skipped.push({ row: hi + i + 2, reason: why }); return ''; }
+    if (!Students.byNo(no3)) { skipped.push({ row: hi + i + 2, reason: `${no3}：名簿にない番号` }); return ''; }
+    return no3;
+  },
+  /** 空欄でない項目だけ、今の進路先に上書きする（同じ区分の入力があればそれを残す） */
+  apply(items, type) {
+    let updated = 0;
+    for (const it of items) {
+      const s = Students.byNo(it.no3);
+      if (!s) continue;
+      const cur = s.dest && s.dest.type === type ? s.dest : {};
+      const filled = Object.fromEntries(Object.entries(it.dest).filter(([, v]) => v !== '' && v != null));
+      s.dest = Object.assign({}, cur, filled, { type });
+      updated++;
+    }
+    return { added: 0, updated };
+  },
+};
 
 const ImportTypes = {
   selection: {
@@ -381,6 +452,78 @@ const ImportTypes = {
           ['・第1希望・職種・備考は任意です。見出しの文字は変えないでください。'],
         ] },
       ]);
+    },
+  },
+
+  outShingaku: {
+    label: '進路決定：進学',
+    desc: '進学の進路先。列：番号（4桁）・方法（総合型／指定校／AO／公募型／一般）・校種（専門／短大／四大）・校名・学部・学科・専攻・専修・コース等・備考。校種が空欄でも、校名から判断します。決まった人として入ります（「状態」の列を足せば、活動中も指定できます）。「進路決定」の画面に入ります（就職は別の取り込みです）。',
+    detect: rows => Excel.findHeader(rows, [/^(学校名|校名)$/]) >= 0 && Excel.findHeader(rows, [/^(受験)?方法$/]) >= 0,
+    parse(rows) {
+      const hi = Excel.findHeader(rows, [/^(学校名|校名)$/]);
+      const h = rows[hi].map(c => Excel.norm(c));
+      const c = { no3: Excel.col(h, [/^4?桁?番号$/, ...NO3_PATTERNS]), exam: Excel.col(h, [/^(受験)?方法$/]), level: Excel.col(h, [/^(校種|種別|区分)$/]),
+        school: Excel.col(h, [/^(学校名|校名)$/]), faculty: Excel.col(h, [/^学部/]), dept: Excel.col(h, [/^学科/]),
+        major: Excel.col(h, [/^(専攻|専修|コース)/]), remarks: Excel.col(h, [/^備考/]), status: Excel.col(h, [/^(状態|状況)$/]) };
+      if (c.no3 < 0) throw new Error('「番号」の列が見つかりません。');
+      const get = (r, k) => c[k] >= 0 ? String(r[c[k]] ?? '').trim() : '';
+      const items = [], skipped = [];
+      rows.slice(hi + 1).forEach((r, i) => {
+        if (!r.some(x => x != null && String(x).trim() !== '')) return;
+        const no3 = OutImport.rowNo(r, c, hi, i, skipped); if (!no3) return;
+        const row = hi + i + 2, school = get(r, 'school');
+        if (!school) { skipped.push({ row, reason: `${no3}：校名が空欄` }); return; }
+        const exam = OutImport.exam(get(r, 'exam')); if (exam == null) { skipped.push({ row, reason: `${no3}：方法「${get(r, 'exam')}」が分かりません（総合型・指定校・AO・公募型・一般）` }); return; }
+        const level = OutImport.level(get(r, 'level'), school); if (!level) { skipped.push({ row, reason: `${no3}：校種が分かりません（専門・短大・四大など）` }); return; }
+        const status = OutImport.status(get(r, 'status')); if (!status) { skipped.push({ row, reason: `${no3}：状態は「決定」か「活動中」` }); return; }
+        items.push({ no3, dest: { status, level, exam, school, faculty: get(r, 'faculty'), dept: get(r, 'dept'), major: get(r, 'major'), remarks: get(r, 'remarks') } });
+      });
+      return { items, skipped, info: `進学 ${items.length} 人（${OC.LEVELS.map(([k, n]) => [n, items.filter(x => x.dest.level === k).length]).filter(x => x[1]).map(x => x.join(' ')).join('／')}）` };
+    },
+    apply(items) { return OutImport.apply(items, '進学'); },
+    template() {
+      const head = ['番号', '方法', '校種', '校名', '学部', '学科', '専攻・専修・コース等', '備考', '氏名(参考)'];
+      const rows = Outcomes.list().filter(x => x.d.type === '進学' || x.s.course === '進学').map(({ s }) => {
+        const d = s.dest && s.dest.type === '進学' ? s.dest : {};
+        return [s.no3, d.exam || '', { univ: '四大', junior: '短大', senshu: '専門' }[d.level] || OC.levelName(d.level), d.school || '', d.faculty || '', d.dept || '', d.major || '', d.remarks || '', s.name || ''];
+      });
+      Excel.downloadCsv('取り込み用_進路決定_進学.csv', [head, ...rows]);
+    },
+  },
+
+  outShushoku: {
+    label: '進路決定：就職',
+    desc: '就職の進路先。列：番号（4桁）・種別（学校斡旋／斡旋外／公務。空欄は学校斡旋）・会社名・正式な会社名・業種（記号A〜Tまたは名前）・職業分類（記号A〜Oまたは名前）・職種・状態（決定／活動中。空欄は決定）。学校斡旋で内定した求人は自動で入るので、斡旋外・公務の人に使うと便利です。',
+    detect: rows => Excel.findHeader(rows, [/^会社名$/]) >= 0 && Excel.findHeader(rows, [/^(番号|学籍|4桁番号)$/]) >= 0,
+    parse(rows) {
+      const hi = Excel.findHeader(rows, [/^会社名$/]);
+      const h = rows[hi].map(c => Excel.norm(c));
+      const c = { no3: Excel.col(h, [/^4?桁?番号$/, ...NO3_PATTERNS]), kind: Excel.col(h, [/^(種別|区分)$/]), company: Excel.col(h, [/^会社名$/]), full: Excel.col(h, [/^正式/]),
+        ind: Excel.col(h, [/^業種/]), occ: Excel.col(h, [/^職業分類/]), jobTitle: Excel.col(h, [/^職種$/]), status: Excel.col(h, [/^(状態|状況)$/]) };
+      if (c.no3 < 0) throw new Error('「番号」の列が見つかりません。');
+      const get = (r, k) => c[k] >= 0 ? String(r[c[k]] ?? '').trim() : '';
+      const items = [], skipped = [];
+      rows.slice(hi + 1).forEach((r, i) => {
+        if (!r.some(x => x != null && String(x).trim() !== '')) return;
+        const no3 = OutImport.rowNo(r, c, hi, i, skipped); if (!no3) return;
+        const row = hi + i + 2, company = get(r, 'company');
+        if (!company) { skipped.push({ row, reason: `${no3}：会社名が空欄` }); return; }
+        const jobKind = OutImport.kind(get(r, 'kind')); if (!jobKind) { skipped.push({ row, reason: `${no3}：種別「${get(r, 'kind')}」が分かりません（学校斡旋・斡旋外・公務）` }); return; }
+        const ind = OutImport.letter(get(r, 'ind'), OC.IND_NAMES); if (ind == null) { skipped.push({ row, reason: `${no3}：業種「${get(r, 'ind')}」が分かりません（記号A〜Tまたは名前）` }); return; }
+        const occ = OutImport.letter(get(r, 'occ'), OC.OCC_SHORT); if (occ == null) { skipped.push({ row, reason: `${no3}：職業分類「${get(r, 'occ')}」が分かりません（記号A〜Oまたは名前）` }); return; }
+        const status = OutImport.status(get(r, 'status')); if (!status) { skipped.push({ row, reason: `${no3}：状態は「決定」か「活動中」` }); return; }
+        items.push({ no3, dest: { status, jobKind, company, companyFull: get(r, 'full'), ind, occ, jobTitle: get(r, 'jobTitle') } });
+      });
+      return { items, skipped, info: `就職 ${items.length} 人（${OC.JOBKINDS.map(k => [k, items.filter(x => x.dest.jobKind === k).length]).filter(x => x[1]).map(x => x.join(' ')).join('／')}）` };
+    },
+    apply(items) { return OutImport.apply(items, '就職'); },
+    template() {
+      const head = ['番号', '種別', '会社名', '正式な会社名', '業種', '職業分類', '職種', '状態', '氏名(参考)'];
+      const rows = Outcomes.list().filter(x => x.d.type === '就職' || x.s.course === '就職').map(({ s }) => {
+        const d = s.dest && s.dest.type === '就職' ? s.dest : {};
+        return [s.no3, d.jobKind || '', d.company || '', d.companyFull || '', d.ind || '', d.occ || '', d.jobTitle || '', d.status || '', s.name || ''];
+      });
+      Excel.downloadCsv('取り込み用_進路決定_就職.csv', [head, ...rows]);
     },
   },
 
@@ -622,11 +765,13 @@ const Importer = {
     const all = [['grades', '名簿・評定・出欠', '最初に取り込みます。1〜3年の評定、欠席・遅刻・早退。'],
       ['course', '進路希望調査', '就職・進学の別と受験方法。名簿の取り込み後に出力すると番号・氏名入りで出ます。'],
       ['special', '特別活動・模試', '謹慎・部活・部長・生徒会・模試順位・見学グループ。名簿の取り込み後に出力します。'],
+      ['outShingaku', '進路決定：進学（CSV）', '番号・方法（総合型／指定校／AO／公募型）・校種（専門／短大／四大）・校名・学部・学科・専攻・専修・コース等・備考。進学希望の生徒が入った状態で出ます。'],
+      ['outShushoku', '進路決定：就職（CSV）', '番号・種別・会社名・業種・職業分類・職種・状態。就職希望の生徒が入った状態で出ます。斡旋外・公務の入力に便利です。'],
       ['jobs', '求人票：現行の形式', 'これまでの「00_求人票データ」と同じ見出し（30列）。今ある表を、そのまま貼り付けて取り込めます。指名求人・事前選考を登録するための「区分」欄も付いています。'],
       ['handy', '求人票：Handyの形式', 'Handy進路指導室の「求人票一覧ダウンロード（CSV）」と同じ見出し（70項目）。CSV はそのまま取り込めるので、この様式は見本・手入力用です。']];
     const list = only ? all.filter(x => only.includes(x[0])) : all;
     const body = document.createElement('div');
-    body.innerHTML = `<p class="sub">Excel に入力して「Excel から取り込む」で読み込みます。ダウンロードしたファイルには、入力用・記入例・説明のシートがあります。</p>
+    body.innerHTML = `<p class="sub">Excel（または CSV）に入力して取り込みます。Excel の様式には、入力用・記入例・説明のシートがあります。CSV の様式は、見出し行（と名簿の生徒）だけが入っています。</p>
       <div class="tpl-list">${list.map(([k, n, d]) => `<div class="tpl-item"><div><b>${n}</b><div class="sub">${esc(d)}</div></div>
         <button class="btn btn-sm btn-primary" data-tpl="${k}" ${k === 'special' && !Store.data.students.length ? 'disabled title="先に名簿を取り込んでください"' : ''}>ダウンロード</button></div>`).join('')}</div>`;
     body.addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (b && Excel.ok()) ImportTypes[b.dataset.tpl].template(); });
