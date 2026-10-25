@@ -6,7 +6,7 @@
    ============================================================ */
 
 const OutcomesPage = {
-  state: { q: '', f: '', dept: '' },
+  state: { q: '', f: '', dept: '', sort: 'no3', dir: 'asc' },
 
   render(view) {
     const st = this.state;
@@ -23,7 +23,7 @@ const OutcomesPage = {
         ${stat('就職', sm.all.jobSchool + sm.all.jobOther + sm.all.jobPublic)}${stat('進学', sm.all.univ + sm.all.junior + sm.all.senshu + sm.all.college + sm.all.nurse + sm.all.eduOther)}
       </div>
       <div class="btn-row" style="margin-bottom:10px">
-        <button class="btn" id="ocImpS">進学を取り込む</button><button class="btn" id="ocImpJ">就職を取り込む</button><button class="btn" id="ocTpl">取り込み用CSVの様式をダウンロード</button>
+        <button class="btn" id="ocImpS">進学を取り込む</button><button class="btn" id="ocImpJ">就職を取り込む</button><button class="btn" id="ocTpl">取り込み用CSVの様式をダウンロード</button><button class="btn btn-primary" id="ocYe" title="この内容から作られる進路先一覧・進路指導まとめ・スライドを見る">年度末の資料へ →</button>
       </div>
       <div class="toolbar">
         <input type="search" id="ocQ" class="grow" placeholder="番号・氏名・進路先で検索" value="${esc(st.q)}">
@@ -35,6 +35,7 @@ const OutcomesPage = {
     $('#ocImpS', view).addEventListener('click', imp('outShingaku'));
     $('#ocImpJ', view).addEventListener('click', imp('outShushoku'));
     $('#ocTpl', view).addEventListener('click', () => Importer.templates(['outShingaku', 'outShushoku']));
+    $('#ocYe', view).addEventListener('click', () => UI.go('yearend'));
     const redraw = () => this.draw($('#ocTable', view));
     $('#ocQ', view).addEventListener('input', e => { st.q = e.target.value; redraw(); });
     $('#ocF', view).addEventListener('change', e => { st.f = e.target.value; redraw(); });
@@ -57,13 +58,21 @@ const OutcomesPage = {
     if (st.f === '未') rows = rows.filter(x => !x.d.type);
     else if (st.f === '活') rows = rows.filter(x => x.d.type && x.d.status === '活動中');
     else if (st.f) rows = rows.filter(x => x.d.type === st.f);
+    const val = { no3: x => num(x.s.no3), name: x => x.s.name, gender: x => x.gender, dept: x => x.dept, type: x => x.d.type, status: x => x.d.type ? x.d.status : '', desc: x => this.desc(x.d) };
+    rows = sortRows(rows, st.sort, st.dir, (x, k) => val[k](x));
     if (!Store.data.students.length) { el.innerHTML = '<div class="empty"><p class="empty-title">生徒が登録されていません</p><p>［生徒・成績］で名簿を取り込んでください。</p></div>'; return; }
-    el.innerHTML = `<p class="count">${rows.length} 人</p><div class="table-wrap"><table class="tbl tbl-click"><thead><tr><th class="num">番号</th><th>氏名</th><th>性</th><th>学科</th><th>区分</th><th>状態</th><th>進路先</th></tr></thead><tbody>
-      ${rows.map(x => `<tr data-id="${x.s.id}"><td class="num mono">${esc(x.s.no3)}</td><td>${esc(x.s.name)}</td><td>${esc(x.gender)}</td><td>${esc(x.dept)}</td>
-        <td>${x.d.type ? `<b>${esc(x.d.type)}</b>` : '<span class="tag tag-warn">未入力</span>'}</td>
-        <td>${x.d.type ? `<span class="tag ${x.d.status === '決定' ? 'tag-accent' : 'tag-warn'}">${esc(x.d.status)}</span>${x.d.auto ? ' <span class="sub">（自動）</span>' : ''}` : ''}</td>
+    el.innerHTML = `<p class="count">${rows.length} 人</p><div class="table-wrap"><table class="tbl tbl-click"><thead><tr>${[['no3', '番号', 'num'], ['name', '氏名'], ['gender', '性'], ['dept', '学科'], ['type', '区分'], ['status', '状態'], ['desc', '進路先']]
+        .map(([k, l, c]) => `<th class="sortable ${c || ''} ${st.sort === k ? 'sorted-' + st.dir : ''}" data-sort="${k}">${l}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map(x => `<tr data-id="${x.s.id}"><td class="num mono nowrap">${esc(x.s.no3)}</td><td class="nowrap">${esc(x.s.name)}</td><td class="nowrap">${esc(x.gender)}</td><td class="nowrap">${esc(x.dept)}</td>
+        <td class="nowrap">${x.d.type ? `<b>${esc(x.d.type)}</b>` : '<span class="tag tag-warn">未入力</span>'}</td>
+        <td class="nowrap">${x.d.type ? `<span class="tag ${x.d.status === '決定' ? 'tag-accent' : 'tag-warn'}">${esc(x.d.status)}</span>${x.d.auto ? ' <span class="sub">（自動）</span>' : ''}` : ''}</td>
         <td class="sm">${esc(this.desc(x.d))}</td></tr>`).join('')}</tbody></table></div>`;
     $$('tbody tr', el).forEach(tr => tr.addEventListener('click', () => this.edit(tr.dataset.id)));
+    $$('th.sortable', el).forEach(th => th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (st.sort === k) st.dir = st.dir === 'asc' ? 'desc' : 'asc'; else { st.sort = k; st.dir = 'asc'; }
+      this.draw(el);
+    }));
   },
 
   /* ---------- 入力 ---------- */
