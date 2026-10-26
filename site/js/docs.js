@@ -31,6 +31,13 @@ const Docs = {
     return list.sort((x, y) => String(x.job.kana || x.job.company).localeCompare(String(y.job.kana || y.job.company), 'ja'));
   },
 
+  /** 応募書類（送付状・レターパックのラベル）の宛先。部署・担当者は求人票の応募窓口を使わず、基本は「人事採用担当者　様」。
+   *  「送付先の変更」で部署・担当者名を入れたときだけ、それを使う */
+  applyTo(job) {
+    const d = Derive.sendTo(job);
+    return Object.assign({}, d, { dept: job.sendDept || '', contact: job.sendContact || '' });
+  },
+
   /** 宛名の敬称行 */
   addressee(dest) {
     if (dest.contact) return `${dest.dept ? esc(dest.dept) + '　' : ''}${esc(dest.contact)}　様`;
@@ -59,7 +66,7 @@ const Docs = {
   context(key, g) {
     const sc = this.school();
     const job = g.job;
-    const dest = Derive.sendTo(job);
+    const dest = key === 'visitLetter' || key === 'visitConfirm' ? Derive.sendTo(job) : this.applyTo(job);
     const iso = this.sendDateISO();
     const month = parseISO(iso).getMonth();
     const dates = [...new Set(g.apps.map(x => x.a.visitDate).filter(Boolean))];
@@ -211,7 +218,7 @@ const Docs = {
   },
   /** レターパックプラス用の宛名ラベル（現行の PDF の配置。1片 100.3×140.8mm に、宛先・差出人・「就職応募書類在中」）。位置は片の左上からの距離（mm） */
   letterLabelHtml(g) {
-    const d = Derive.sendTo(g.job), sc = this.school();
+    const d = this.applyTo(g.job), sc = this.school();
     d.address = Derive.withPref(d.address, d.zip);
     const co = String(g.job.company || '');
     const to = [d.dept, d.contact].filter(Boolean).join('　') || '人事採用担当者';

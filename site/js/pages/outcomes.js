@@ -64,7 +64,7 @@ const OutcomesPage = {
     el.innerHTML = `<p class="count">${rows.length} 人</p><div class="table-wrap"><table class="tbl tbl-click"><thead><tr>${[['no3', '番号', 'num'], ['name', '氏名'], ['gender', '性'], ['dept', '学科'], ['type', '区分'], ['status', '状態'], ['desc', '進路先']]
         .map(([k, l, c]) => `<th class="sortable ${c || ''} ${st.sort === k ? 'sorted-' + st.dir : ''}" data-sort="${k}">${l}</th>`).join('')}</tr></thead><tbody>
       ${rows.map(x => `<tr data-id="${x.s.id}"><td class="num mono nowrap">${esc(x.s.no3)}</td><td class="nowrap">${esc(x.s.name)}</td><td class="nowrap">${esc(x.gender)}</td><td class="nowrap">${esc(x.dept)}</td>
-        <td class="nowrap">${x.d.type ? `<b>${esc(x.d.type)}</b>` : '<span class="tag tag-warn">未入力</span>'}</td>
+        <td class="nowrap">${x.d.type ? `<b>${esc(x.d.type)}</b>` : '<span class="tag tag-warn">未入力</span>'}${(x.s.destLog || []).length ? ` <span class="tag" title="${esc(x.s.destLog.map(h => h.at + ' ' + h.from + '→' + h.to).join('／'))}">変更あり</span>` : ''}</td>
         <td class="nowrap">${x.d.type ? `<span class="tag ${x.d.status === '決定' ? 'tag-accent' : 'tag-warn'}">${esc(x.d.status)}</span>${x.d.auto ? ' <span class="sub">（自動）</span>' : ''}` : ''}</td>
         <td class="sm">${esc(this.desc(x.d))}</td></tr>`).join('')}</tbody></table></div>`;
     $$('tbody tr', el).forEach(tr => tr.addEventListener('click', () => this.edit(tr.dataset.id)));
@@ -117,8 +117,21 @@ const OutcomesPage = {
         ${f('専修・各種の分野', sel('field', [['', '（自動／未設定）'], ...this.fields().map(x => [x, x])], cur.field), 'wide')}</div></div>
       <div class="oc-sec" data-sec="その他"><h3>その他</h3><div class="grid">${f('内容', inp('note', cur.note, '例：家事手伝い・未定'), 'wide')}</div></div>
       <datalist id="dlWork"></datalist><datalist id="dlSchool"></datalist><datalist id="dlFac"></datalist><datalist id="dlDept"></datalist>`;
+    const hist = (s.destLog || []).map(h => `<li>${esc(h.at)}　${esc(h.from)}${h.fromDesc ? `（${esc(h.fromDesc)}）` : ''} → ${esc(h.to)}</li>`).join('');
+    if (hist) body.insertAdjacentHTML('beforeend', `<details class="oc-log"><summary>進路の変更履歴（${s.destLog.length}件）</summary><ul>${hist}</ul></details>`);
+    let lastType = cur.type;
     const upd = () => {
       const t = $('[data-k="type"]', body).value;
+      if (t !== lastType) {
+        lastType = t;
+        // 前に入力した同じ区分の内容があり、いまの欄が空なら戻す（進学→就職→進学のとき）
+        const old = (s.destStash || {})[t];
+        const sec = $$('.oc-sec', body).find(x => x.dataset.sec === t);
+        if (old && sec && $$('[data-k]', sec).every(e => !e.value || e.tagName === 'SELECT')) {
+          $$('[data-k]', sec).forEach(e => { if (old[e.dataset.k] != null) e.value = old[e.dataset.k]; });
+          UI.toast('前に入力していた内容を戻しました');
+        }
+      }
       $$('.oc-sec', body).forEach(x => { x.style.display = x.dataset.sec === t ? '' : 'none'; });
       const lv = $('[data-k="level"]', body).value;
       const dl = (id, arr) => { $(id, body).innerHTML = arr.map(x => `<option value="${esc(x)}">`).join(''); };
@@ -138,6 +151,26 @@ const OutcomesPage = {
     const res = await UI.modal({ title: '進路先の入力', body, buttons, wide: true, onOpen: upd });
     if (res === 'save') {
       const v = {}; $$('[data-k]', body).forEach(e => { v[e.dataset.k] = e.value.trim(); });
+      const changed = !!v.type && v.type !== cur.type;
+      if (changed && cur.type === '就職') {
+        const a = Apps.current(s.id);
+        if (a && a.result !== '辞退' && a.result !== '不採用') {
+          const jb = Apps.job(a);
+          const ok = await UI.confirm(`この生徒には${a.result === '内定' ? '内定' : '応募中'}の記録があります${jb ? `（${shortCompany(jb.shortName || jb.company)}）` : ''}。\n進路を「${v.type}」に変えると、その応募を「辞退」として記録し、求人の枠を空けます。\n（応募の記録は消えません）`, { title: '就職から進路を変えます', ok: '変えて辞退にする', danger: true });
+          if (!ok) return;
+          a.result = '辞退'; a.resultDate = a.resultDate || todayISO();
+          a.note = (a.note ? a.note + '／' : '') + `進路変更（${v.type}）のため辞退`;
+        }
+      }
+      if (changed) {
+        if (cur.type && s.dest) { s.destStash = s.destStash || {}; s.destStash[cur.type] = JSON.parse(JSON.stringify(s.dest)); }
+        s.destLog = s.destLog || [];
+        s.destLog.push({ at: todayISO(), from: cur.type || '未入力', fromDesc: this.desc(cur), to: v.type });
+        // 就職選考の対象かどうかは進路希望（course）と受験方法（method）で決まるので、そろえる
+        s.course = v.type;
+        if (v.type === '就職') s.method = { 学校斡旋: '学校斡旋', 斡旋外: '自己開拓', 公務: '公務員' }[v.jobKind] || '学校斡旋';
+        else s.method = '';
+      }
       if (!v.type) delete s.dest;
       else {
         const d = { type: v.type, status: v.status || '決定' };
@@ -146,7 +179,7 @@ const OutcomesPage = {
         if (v.type === 'その他') d.note = v.note;
         s.dest = d;
       }
-      Store.changed(); UI.toast('保存しました');
+      Store.changed(); UI.toast(changed && cur.type ? `進路を「${cur.type}」から「${v.type}」に変更しました（進路希望もそろえました）` : '保存しました');
     } else if (res === 'clear') { delete s.dest; Store.changed(); UI.toast('自動に戻しました'); }
     if (res) UI.refresh();
   },

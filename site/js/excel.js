@@ -238,6 +238,13 @@ const OutImport = {
       const s = Students.byNo(it.no3);
       if (!s) continue;
       const cur = s.dest && s.dest.type === type ? s.dest : {};
+      const before = Outcomes.of(s);
+      if (before.type && before.type !== type) {   // 進路が変わる：履歴に残し、進路希望をそろえる（応募の辞退は進路決定の画面で行う）
+        if (s.dest) { s.destStash = s.destStash || {}; s.destStash[before.type] = JSON.parse(JSON.stringify(s.dest)); }
+        (s.destLog = s.destLog || []).push({ at: todayISO(), from: before.type, fromDesc: OutcomesPage.desc(before), to: type });
+        s.course = type;
+        s.method = type === '就職' ? ({ 斡旋外: '自己開拓', 公務: '公務員' }[it.dest.jobKind] || '学校斡旋') : '';
+      }
       const filled = Object.fromEntries(Object.entries(it.dest).filter(([, v]) => v !== '' && v != null));
       s.dest = Object.assign({}, cur, filled, { type });
       updated++;
