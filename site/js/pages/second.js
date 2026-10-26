@@ -18,10 +18,11 @@ const SecondPage = {
   rows() {
     const rk = new Map(Points.ranking().map(r => [r.s.id, r]));
     return Store.data.students.filter(s => Students.isJobSeeker(s)).map(s => {
+      const added = !!(s.second && s.second.added);
       const list = Apps.of(s.id).filter(a => a.confirmed);
       const cur = Apps.current(s.id);
       // 進路を変えて就職に加わった生徒は、1次に出せないので、最初から2次の対象にする
-      const failed = list.some(a => a.result === '不採用' || a.result === '辞退') || Students.lateEntrant(s);
+      const failed = list.some(a => a.result === '不採用' || a.result === '辞退') || Students.lateEntrant(s) || added;
       const wait = !cur || cur.result === '不採用' || cur.result === '辞退';
       return { s, cur, failed, wait, r: rk.get(s.id) };
     }).filter(x => x.failed)
@@ -39,6 +40,7 @@ const SecondPage = {
       <div class="page-head">
         <div><h1>選考会議（2次）</h1><p class="lead">1次で内定しなかった（不採用・辞退）生徒が、ここに自動で並びます。応募先を決め、試験日・合否まで続けて記録します。右端の確認欄（一覧表線引き〜郵送した旨Tel）は、押すたびに 空白→〇→済 と変わり、会議資料にも同じ印が出ます。</p></div>
         <div class="head-actions">
+          <button class="btn" id="scAdd" title="進路を変えた生徒など、1次に出ていない生徒をここに加えます">生徒を追加</button>
           <button class="btn btn-primary" id="scPrint" ${all.length ? '' : 'disabled'}>2次選考会議の資料を印刷</button>
         </div>
       </div>
@@ -60,6 +62,11 @@ const SecondPage = {
 `;
     $$('[data-filter]', view).forEach(b => b.addEventListener('click', () => { this.state.filter = b.dataset.filter; UI.refresh(); }));
     $('#scPrint', view).addEventListener('click', () => this.printMeeting());
+    $('#scAdd', view).addEventListener('click', () => this.addStudent());
+    $$('[data-unadd]', view).forEach(b => b.addEventListener('click', () => {
+      const st = Students.byId(b.dataset.unadd); if (!st) return;
+      st.second = Object.assign({}, st.second, { added: false }); Store.changed(); UI.refresh(); UI.toast('2次の一覧から外しました');
+    }));
     $$('[data-next]', view).forEach(b => b.addEventListener('click', () => AppsPage.addNext(b.dataset.next)));
     if ($('#sendCard', view)) SendDocs.bind($('#sendCard', view));
     if ($('#scSend', view)) $('#scSend', view).addEventListener('toggle', e => { this.state.sendOpen = e.target.open; });
@@ -97,6 +104,44 @@ const SecondPage = {
         UI.toast(`${a.round}次の応募を取り消しました`);
       });
     }
+  },
+
+  /** 1次に出ていない生徒（進路を変えた生徒など）を、2次の一覧に加える。就職希望でなければ、就職（学校斡旋）に変えて加える */
+  async addStudent() {
+    const inList = new Set(this.rows().map(x => x.s.id));
+    const cands = Store.data.students.filter(s => STUDENT_NO.test(s.no3) && !inList.has(s.id)).sort((a, b) => a.no3.localeCompare(b.no3));
+    if (!cands.length) { UI.toast('追加できる生徒がいません', 'warn'); return; }
+    const body = document.createElement('div');
+    body.innerHTML = `<p class="sub">1次の選考会議に出ていない生徒（進路を進学などから就職に変えた生徒）を、2次の一覧に加えます。</p>
+      <input type="search" id="scQ" class="w-full" placeholder="番号・氏名で検索"><div id="scList" class="pick-list"></div>`;
+    let chosen = null;
+    const draw = () => {
+      const q = toHalf($('#scQ', body).value).trim();
+      const list = cands.filter(s => !q || s.no3.includes(q) || (s.name || '').includes(q)).slice(0, 80);
+      $('#scList', body).innerHTML = list.map(s => `<button class="pick-item ${chosen === s.id ? 'on' : ''}" data-id="${s.id}"><span class="mono">${esc(s.no3)}</span><span class="pk-main"><b>${esc(s.name)}</b><small>${esc((Students.dept(s) || {}).name || '')}</small></span><span class="tag">${esc(s.course || '未')}${s.course === '就職' && s.method && s.method !== '学校斡旋' ? '（' + esc(s.method) + '）' : ''}</span></button>`).join('') || '<p class="sub">見つかりません</p>';
+    };
+    const res = await UI.modal({
+      title: '2次に生徒を追加', body, wide: true,
+      buttons: [{ label: 'キャンセル', value: null }, { label: '追加する', kind: 'primary', value: 'ok', onClick: () => { if (!chosen) { UI.toast('生徒を選んでください', 'warn'); return false; } } }],
+      onOpen: root => {
+        draw();
+        $('#scQ', root).addEventListener('input', draw);
+        root.addEventListener('click', e => { const it = e.target.closest('.pick-item'); if (it) { chosen = it.dataset.id; draw(); } });
+      },
+    });
+    if (res !== 'ok') return;
+    const s = Students.byId(chosen);
+    if (!Students.isJobSeeker(s)) {
+      const was = Outcomes.of(s);
+      if (!await UI.confirm(`${Students.label(s)} は、いまの進路が「${was.type || s.course || '未入力'}」です。\n進路を「就職（学校斡旋）」に変えて、2次の一覧に加えます。\n（変更の履歴は進路決定に残ります）`, { title: '進路を就職に変えます', ok: '変えて追加する' })) return;
+      if (s.dest && was.type) { s.destStash = s.destStash || {}; s.destStash[was.type] = JSON.parse(JSON.stringify(s.dest)); }
+      (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '未入力', fromDesc: OutcomesPage.desc(was), to: '就職' });
+      s.course = '就職'; s.method = '学校斡旋';
+      s.dest = { type: '就職', status: '活動中', jobKind: '学校斡旋' };
+    }
+    s.second = Object.assign({}, s.second, { added: true });
+    Store.changed(); UI.refresh();
+    UI.toast(`${s.name || s.no3} を2次の一覧に追加しました`);
   },
 
   /** 2次選考会議の資料（A4 横）。1度でも不採用・辞退になった就職希望者を並べ、会議で書き込む欄をつける。内定した人の行は網掛け */
@@ -147,7 +192,7 @@ const SecondPage = {
   },
 
   rowHtml({ s, cur, wait, r }) {
-    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td><td class="sm">${this.histCell(s, wait)}</td>`;
+    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}${s.second && s.second.added && !cur ? ` <button class="link-btn" data-unadd="${s.id}" title="2次の一覧から外す（応募はまだありません）">外す</button>` : ''}</td><td class="sm">${this.histCell(s, wait)}</td>`;
     if (wait) {
       const nr = cur ? cur.round + 1 : 2;
       return `<tr class="res-none">${head}<td class="c">${nr}</td>
