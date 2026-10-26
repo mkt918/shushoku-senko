@@ -153,13 +153,15 @@ const AppsPage = {
     };
     const res = await UI.modal({
       title: `${round}次の応募先`, body, wide: true,
-      buttons: [{ label: 'キャンセル', value: null }, { label: '確定する', kind: 'primary', value: 'ok', onClick: () => { if (!chosen) { UI.toast('求人を選んでください', 'warn'); return false; } } }],
+      buttons: [{ label: '進学に変更する', value: 'edu' }, { label: '自己開拓に変更する', value: 'self' }, { label: '家事手伝いに変更する', value: 'home' },
+        { label: 'キャンセル', value: null }, { label: '確定する', kind: 'primary', value: 'ok', onClick: () => { if (!chosen) { UI.toast('求人を選んでください', 'warn'); return false; } } }],
       onOpen: root => {
         draw();
         $('#nxQ', root).addEventListener('input', draw);
         root.addEventListener('click', e => { const it = e.target.closest('.pick-item'); if (it) { chosen = it.dataset.id; draw(); } });
       },
     });
+    if (res === 'edu' || res === 'self' || res === 'home') { await this.changeCourse(s, res); return; }
     if (res !== 'ok') return;
     const a = blankApplication(studentId, chosen, round, 1);
     a.confirmed = true;
@@ -167,6 +169,20 @@ const AppsPage = {
     Store.changed();
     UI.refresh();
     UI.toast(`${round}次の応募先を確定しました`);
+  },
+
+  /** 学校斡旋の就職をやめる（進学・自己開拓・家事手伝いに変更）。就職選考の一覧（1次・2次）から外れる。履歴は進路決定に残る */
+  async changeCourse(s, kind) {
+    const to = { edu: '進学', self: '自己開拓', home: '家事手伝い' }[kind];
+    if (!await UI.confirm(`${Students.label(s)} の進路を「${to}」に変更します。\n学校斡旋の就職選考（1次・2次）の一覧からは外れます。\n（応募の記録は消えません。変更の履歴は進路決定に残ります）`, { title: '進路を変更します', ok: `${to}に変更する` })) return;
+    const was = Outcomes.of(s);
+    if (s.dest && was.type) { s.destStash = s.destStash || {}; s.destStash[was.type] = JSON.parse(JSON.stringify(s.dest)); }
+    (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '就職', fromDesc: OutcomesPage.desc(was), to: kind === 'edu' ? '進学' : `就職（${to}）` });
+    if (kind === 'edu') { s.course = '進学'; s.method = ''; s.dest = { type: '進学', status: '活動中' }; }
+    else { s.course = '就職'; s.method = to; s.dest = { type: '就職', status: '活動中', jobKind: '斡旋外' }; }
+    if (s.second) s.second = Object.assign({}, s.second, { added: false });
+    Store.changed(); UI.refresh();
+    UI.toast(`${s.name || s.no3} の進路を「${to}」に変更しました`);
   },
 
   printNext() {
