@@ -39,7 +39,7 @@ const Selection = {
 
   seekers() {
     const rk = Points.ranking();
-    return sortRows(rk.filter(r => Students.isJobSeeker(r.s)), 'jobRank', 'asc', r => r.jobRank ?? null);
+    return sortRows(rk.filter(r => Students.isJobSeeker(r.s) && !Students.lateEntrant(r.s)), 'jobRank', 'asc', r => r.jobRank ?? null);
   },
 
   /** 求人ごとの集計（1次の希望・確定） */
@@ -53,7 +53,7 @@ const Selection = {
     for (const a of Store.data.applications) {
       if (a.round !== 1) continue;
       const s = Students.byId(a.studentId);
-      if (!s || !Students.isJobSeeker(s)) continue;
+      if (!s || !Students.isJobSeeker(s) || Students.lateEntrant(s)) continue;
       const x = get(a.jobId);
       x.prefs[a.pref]++;
       x.total++;
@@ -355,7 +355,7 @@ const Selection = {
     const job = Jobs.byId(jobId);
     const rk = new Map(Points.ranking().map(r => [r.s.id, r]));
     const list = Store.data.applications.filter(a => a.round === 1 && a.jobId === jobId)
-      .map(a => ({ a, r: rk.get(a.studentId) })).filter(x => x.r && Students.isJobSeeker(x.r.s))
+      .map(a => ({ a, r: rk.get(a.studentId) })).filter(x => x.r && Students.isJobSeeker(x.r.s) && !Students.lateEntrant(x.r.s))
       .sort((x, y) => (x.r.jobRank ?? 1e9) - (y.r.jobRank ?? 1e9));
     UI.modal({
       title: `${job.company}　${job.jobTitle || ''}（求人 ${Jobs.capacity(job)} 人）`, wide: true,

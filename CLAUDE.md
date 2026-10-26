@@ -231,3 +231,4 @@
 - 進路決定の画面で区分（就職／進学／その他）を変えて保存すると、`student.course` と `method` もそろえる（就職選考の対象かどうかは `course`／`method` で決まるため）。履歴は `student.destLog = [{at, from, fromDesc, to}]`、前の入力は `student.destStash[区分]` に残し、区分を戻したとき空欄なら復元する。表に「変更あり」を出す。
 - 就職から変えるとき、今の応募が内定・応募中なら確認を出し、`result='辞退'`（備考つき）にして枠を空ける。応募の記録は消さない。取り込み（`OutImport.apply`）でも履歴と `course` のそろえはするが、応募の辞退はしない。
 - 応募書類の送付状とレターパックの宛名ラベルの宛先は、基本「人事採用担当者　様」。求人票の応募窓口（`dept`／`contact`）は使わず、「送付先の変更」の部署・担当者名（`sendDept`／`sendContact`）を入れたときだけ使う（`Docs.applyTo`）。職場見学の依頼文・ラベルは従来どおり。
+- 進路を変えて就職に加わった生徒（`Students.lateEntrant`＝`destLog` の最後が「→就職」）は、**1次の選考会議には出さない**（`Selection.seekers/jobStats` から除く）。2次選考会議（`SecondPage.rows`）に最初から並び、応募は2次（`round:2`）から（`AppsPage.addNext`）。

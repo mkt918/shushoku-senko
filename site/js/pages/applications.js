@@ -138,8 +138,8 @@ const AppsPage = {
   async addNext(studentId) {
     const s = Students.byId(studentId);
     const cur = Apps.current(studentId);
-    if (!cur) { UI.toast('1次の応募先は「選考会議（1次）」で確定してください', 'warn'); return; }
-    const round = cur.round + 1;
+    if (!cur && !Students.lateEntrant(s)) { UI.toast('1次の応募先は「選考会議（1次）」で確定してください', 'warn'); return; }
+    const round = cur ? cur.round + 1 : 2;
     const body = document.createElement('div');
     body.innerHTML = `<p>${esc(Students.label(s))}　の <b>${round}次</b> の応募先</p>
       <input type="search" id="nxQ" class="w-full" placeholder="下4桁・事業所名・職種で検索"><div id="nxList" class="pick-list"></div>`;

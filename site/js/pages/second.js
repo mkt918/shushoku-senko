@@ -20,7 +20,8 @@ const SecondPage = {
     return Store.data.students.filter(s => Students.isJobSeeker(s)).map(s => {
       const list = Apps.of(s.id).filter(a => a.confirmed);
       const cur = Apps.current(s.id);
-      const failed = list.some(a => a.result === '不採用' || a.result === '辞退');
+      // 進路を変えて就職に加わった生徒は、1次に出せないので、最初から2次の対象にする
+      const failed = list.some(a => a.result === '不採用' || a.result === '辞退') || Students.lateEntrant(s);
       const wait = !cur || cur.result === '不採用' || cur.result === '辞退';
       return { s, cur, failed, wait, r: rk.get(s.id) };
     }).filter(x => x.failed)
@@ -148,8 +149,9 @@ const SecondPage = {
   rowHtml({ s, cur, wait, r }) {
     const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}</td><td class="sm">${this.histCell(s, wait)}</td>`;
     if (wait) {
-      return `<tr class="res-none">${head}<td class="c">${cur ? cur.round + 1 : 1}</td>
-        <td colspan="6"><button class="btn btn-sm" data-next="${s.id}">${(cur ? cur.round + 1 : 1)}次の応募先を決める</button></td>${this.chkCell(s)}<td></td></tr>`;
+      const nr = cur ? cur.round + 1 : 2;
+      return `<tr class="res-none">${head}<td class="c">${nr}</td>
+        <td colspan="6"><button class="btn btn-sm" data-next="${s.id}">${nr}次の応募先を決める</button></td>${this.chkCell(s)}<td></td></tr>`;
     }
     const a = cur, job = Apps.job(a);
     const fld = (k, type = 'text', cls = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}">`;

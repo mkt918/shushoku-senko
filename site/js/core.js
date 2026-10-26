@@ -685,6 +685,8 @@ const Students = {
   dept(s) { return deptOf(s.no3, Store.data.settings); },
   /** 就職（学校斡旋）対象か */
   isJobSeeker(s) { return s.course === '就職' && (!s.method || s.method === '学校斡旋'); },
+  /** 進路を変えて（進学などから）就職に加わった生徒。1次の選考会議には出せず、2次以降から応募する */
+  lateEntrant(s) { const l = s.destLog || []; return s.course === '就職' && l.length > 0 && l[l.length - 1].to === '就職'; },
   label(s) { return `${s.no3} ${s.name || ''}`.trim(); },
 };
 
