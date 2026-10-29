@@ -796,3 +796,12 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 
 .pin-list { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 190px; overflow: auto; padding: 8px 10px; border: 1px solid var(--line, #d9d6cc); border-radius: 6px; background: #fff; }
 .pin-i { font-size: 13px; white-space: nowrap; cursor: pointer; }
+
+/* 選考会議（2次）：左右にスクロールしても、就職順位・番号・氏名は左に固定 */
+#scTable th:nth-child(-n+3), #scTable td:nth-child(-n+3) { position: sticky; z-index: 1; background: var(--surface); }
+#scTable thead th:nth-child(-n+3) { z-index: 3; background: var(--surface-2); }
+#scTable th:nth-child(1), #scTable td:nth-child(1) { left: 0; min-width: 78px; max-width: 78px; }
+#scTable th:nth-child(2), #scTable td:nth-child(2) { left: 78px; min-width: 60px; max-width: 60px; }
+#scTable th:nth-child(3), #scTable td:nth-child(3) { left: 138px; min-width: 130px; box-shadow: 2px 0 0 var(--line); }
+#scTable tr.res-内定 td:nth-child(-n+3) { background: var(--ok-soft); }
+#scTable tr.res-不採用 td:nth-child(-n+3), #scTable tr.res-辞退 td:nth-child(-n+3) { background: var(--surface-2); }
