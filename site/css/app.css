@@ -793,3 +793,6 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 /* 設定の目次：上の帯（ファイル名・保存）の下に止める */
 .toc { top: 51px; border-bottom: 1px solid var(--line); padding: 8px 0; }
 [id^="set-"] { scroll-margin-top: 110px; }
+
+.pin-list { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 190px; overflow: auto; padding: 8px 10px; border: 1px solid var(--line, #d9d6cc); border-radius: 6px; background: #fff; }
+.pin-i { font-size: 13px; white-space: nowrap; cursor: pointer; }

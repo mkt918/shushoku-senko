@@ -142,7 +142,7 @@ const YearendPage = {
     if (!srcs.includes(st.sy)) st.sy = srcs[0];
     st.slOpen = st.slOpen || {};
     const ov = () => { const ye = Store.data.settings.yearend; return ye.slides = ye.slides || {}; };
-    const raw = Slides.build(st.sy, true);
+    const raw = Slides.build(st.sy, true), cands = Slides.cands(st.sy);
     const LISTS = { year: ['時期｜内容（1行＝1項目）', 6], summary: ['進路指導の考え方（1行＝1項目）', 5] };
     const inp = (k, l, ph) => `<label class="field wide"><span class="label">${l}</span><input data-k="${k}" value="${esc(ov()[k] || '')}" placeholder="${esc(ph)}"></label>`;
     const area = k => `<label class="field wide"><span class="label">${LISTS[k][0]}</span><textarea data-k="${k}" rows="${LISTS[k][1]}" placeholder="${esc(Slides.DEF[k])}">${esc(ov()[k] || '')}</textarea></label>`;
@@ -152,7 +152,12 @@ const YearendPage = {
         : `<label class="check"><input type="checkbox" data-hide="${s.id}" ${(o.hide || {})[s.id] ? '' : 'checked'}> このスライドを使う</label>
            <label class="field wide"><span class="label">題（空欄＝自動）</span><input data-title="${s.id}" value="${esc((o.titles || {})[s.id] || '')}" placeholder="${esc(s.def)}"></label>
            <label class="field wide"><span class="label">ひとこと（スライドの下に表示）</span><textarea data-memo="${s.id}" rows="2" placeholder="例：詳しくは個別面談でご説明します">${esc((o.memo || {})[s.id] || '')}</textarea></label>`;
-      const extra = s.id === 'year' ? area('year') : s.id === 'summary' ? area('summary') : '';
+      const pinBox = g => {
+        const names = cands[g], sel = new Set((o.pin || {})[g] || []);
+        const label = g === 'firms' ? '優先して大きく出す企業（チェックした企業は、先頭にオレンジで、かならず表示します）' : '優先して大きく出す学校（チェックした学校は、先頭にオレンジで、かならず表示します）';
+        return `<div class="field wide"><span class="label">${label}</span>${names.length ? `<div class="pin-list">${names.map(n => `<label class="pin-i"><input type="checkbox" data-pin="${g}" value="${esc(n)}" ${sel.has(n) ? 'checked' : ''}> ${esc(n)}</label>`).join('')}</div>` : '<span class="sub">まだ候補がありません（進路決定を入力してください）</span>'}</div>`;
+      };
+      const extra = s.id === 'year' ? area('year') : s.id === 'summary' ? area('summary') : s.id === 'firms' ? pinBox('firms') : s.id === 'eduSchools' ? pinBox('schools') : '';
       return `<details class="sl-edit" data-open="${s.id}" ${st.slOpen[s.id] ? 'open' : ''}><summary>文面を直す</summary><div class="grid">${common}${extra}</div></details>`;
     };
     el.innerHTML = `<div class="toolbar"><label class="inline">使う数字 <select id="slSrc">${srcs.map(y => `<option value="${y}" ${y === st.sy ? 'selected' : ''}>${y === Store.data.year ? `今年度（${Yr.long(y)}・現状）` : `${Yr.long(y)}卒業生の実績`}</option>`).join('')}</select></label>
@@ -192,6 +197,11 @@ const YearendPage = {
     $$('[data-title]', el).forEach(i => i.addEventListener('change', () => put('titles', i.dataset.title, i.value)));
     $$('[data-memo]', el).forEach(i => i.addEventListener('change', () => put('memo', i.dataset.memo, i.value)));
     $$('[data-k]', el).forEach(i => i.addEventListener('change', () => put(null, i.dataset.k, i.value)));
+    $$('.pin-list', el).forEach(box => box.addEventListener('change', () => {
+      const g = $('[data-pin]', box).dataset.pin, o = ov();
+      o.pin = Object.assign({}, o.pin, { [g]: $$('[data-pin]:checked', box).map(c => c.value) });
+      Store.changed(); drawThumbs();
+    }));
     $$('[data-hide]', el).forEach(i => i.addEventListener('change', () => { const o = ov(); o.hide = Object.assign({}, o.hide); if (i.checked) delete o.hide[i.dataset.hide]; else o.hide[i.dataset.hide] = true; Store.changed(); drawThumbs(); }));
     $('#slReset', el).addEventListener('click', async () => {
       if (!await UI.confirm('スライドの文面（題・ひとこと・使うかどうか・各枚の文）をすべて初期に戻します。よろしいですか？', { ok: '初期に戻す', danger: true })) return;
