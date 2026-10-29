@@ -56,7 +56,22 @@ const Auth = {
   check(pw) { return this.make(String(pw ?? '').trim()) === this.PASS_HASH; },
 
   /** このブラウザは、すでにパスワードを入力済みか */
-  remembered() { try { return localStorage.getItem(this.KEY) === this.PASS_HASH; } catch (e) { return false; } },
+  remembered() { try { return localStorage.getItem(this.KEY) === this.PASS_HASH && !this.encOn(); } catch (e) { return false; } },
+
+  /** 起動のパスワードを入れたときの文字列（メモリだけ。保存しない）。暗号化のパスワードとして最初に試す */
+  pw: null,
+  ENC_KEY: 'shushoku-senko:encOn',
+  /** データの暗号化を使っているか（使っているあいだは、起動のたびにパスワードを聞き、それで暗号化も開く） */
+  encOn() { try { return localStorage.getItem(this.ENC_KEY) === '1'; } catch (e) { return false; } },
+  encFlag(on) { try { if (on) localStorage.setItem(this.ENC_KEY, '1'); else localStorage.removeItem(this.ENC_KEY); } catch (e) { /* 何もしない */ } },
+  /** 起動のパスワードで暗号化を開けるか試す。開けたら Crypt.open の結果、だめなら null */
+  async tryOpen(enc) {
+    for (const p of [this.pw, this.pw == null ? null : this.pw.trim()]) {
+      if (!p) continue;
+      try { return await Crypt.open(enc, p); } catch (e) { /* 次を試す */ }
+    }
+    return null;
+  },
   remember() { try { localStorage.setItem(this.KEY, this.PASS_HASH); } catch (e) { /* 保存できなくても、この回は使える */ } },
   /** 覚えを消す（次に開くとき、またパスワードを聞く） */
   lock() { try { localStorage.removeItem(this.KEY); } catch (e) { /* 何もしない */ } },
@@ -82,6 +97,7 @@ const Auth = {
     el.querySelector('form').addEventListener('submit', e => {
       e.preventDefault();
       if (this.check(pw.value)) {
+        this.pw = pw.value;
         this.remember();
         el.remove();
         start();

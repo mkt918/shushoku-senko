@@ -51,6 +51,12 @@ function main() {
   }
   if (r.encrypted) guard(async () => {        // 暗号化した一時保存：パスワードを聞いて復元する
     const saved = r.encrypted;
+    const auto = await Auth.tryOpen(saved.enc);       // 起動のパスワードと同じなら、聞かずに復元する
+    if (auto) {
+      Store.data = normalizeData(auto.data); Store.fileName = saved.fileName || ''; Store.dirty = !!saved.dirty; Store.crypt = auto.c;
+      Store.emit(); UI.renderFileBar(); UI.refresh(); UI.toast('前回の作業内容を復元しました');
+      return;
+    }
     for (;;) {
       const pass = await UI.askPassword({ title: '前回の作業内容を復元', message: '前回の作業内容（暗号化されています）が、このブラウザに残っています。\nパスワードを入れると復元します。キャンセルすると、ファイルを「開く」から始めます。' });
       if (pass == null) { UI.toast('復元しませんでした。保存したファイルを「開く」で開いてください（何か入力すると、この一時保存は上書きされます）', 'warn'); return; }

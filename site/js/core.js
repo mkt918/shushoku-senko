@@ -571,12 +571,14 @@ const Store = {
     try { obj = JSON.parse(text); } catch (e) { throw new Error('ファイルの形式が正しくありません。'); }
     if (Crypt.isEnc(obj)) {
       if (!Crypt.ok()) throw new Error('このブラウザでは、暗号化したファイルを開けません（Edge／Chrome の新しい版を使ってください）。');
+      const auto = await Auth.tryOpen(obj);       // 起動のパスワードと同じなら、聞かずに開く
+      if (auto) { this.crypt = auto.c; Auth.encFlag(true); this.replace(auto.data, name, handle); return true; }
       for (;;) {
         const pass = await UI.askPassword({ title: 'パスワード', message: `「${name}」は暗号化されています。保存したときのパスワードを入れてください。` });
         if (pass == null) return false;
         try {
           const r = await Crypt.open(obj, pass);
-          this.crypt = r.c;                // 先に鍵を持たせてから入れ替える（一時保存も暗号化される）
+          this.crypt = r.c; Auth.encFlag(true);   // 先に鍵を持たせてから入れ替える（一時保存も暗号化される）
           this.replace(r.data, name, handle);
           return true;
         } catch (e) { UI.toast('パスワードが違います', 'warn'); }

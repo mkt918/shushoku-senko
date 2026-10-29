@@ -259,6 +259,7 @@ const Settings = {
       const pass = await UI.askPassword({ title, twice: true, ok: '決める', message: 'パスワードを決めてください（4文字以上）。忘れるとファイルを開けなくなります。' });
       if (pass == null) return;
       Store.crypt = await Crypt.setup(pass);
+      Auth.encFlag(true);
       Store.changed();
       UI.refresh();
       UI.toast('暗号化の設定をしました。「上書き保存」で、ファイルが暗号化されます');
@@ -267,7 +268,7 @@ const Settings = {
     if ($('#encChange', view)) $('#encChange', view).addEventListener('click', () => encSet('パスワードを変える'));
     if ($('#encOff', view)) $('#encOff', view).addEventListener('click', async () => {
       if (!await UI.confirm('暗号化をやめます。次に保存すると、ファイルは暗号化されずに保存されます。', { ok: 'やめる', danger: true })) return;
-      Store.crypt = null; Store.changed(); UI.refresh();
+      Store.crypt = null; Auth.encFlag(false); Store.changed(); UI.refresh();
     });
     $('#dataNew', view).addEventListener('click', async () => {
       if (!await UI.confirm('空のデータで始めます。\n今のデータを保存していない場合は、先に「名前を付けて保存」をしてください。', { ok: '空のデータにする', danger: true })) return;
