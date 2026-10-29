@@ -9,7 +9,7 @@ const YearendPage = {
 
   render(view) {
     const st = this.state, ye = Store.data.settings.yearend;
-    const tabs = [['matome', '進路指導まとめ'], ['work', '就職先一覧'], ['senshu', '専修各種'], ['univ', '四大・短大'], ['master', '指定校一覧'], ['slides', '保護者説明会スライド'], ['history', '過去の実績']];
+    const tabs = [['matome', '進路指導まとめ'], ['work', '就職先一覧'], ['senshu', '専修各種'], ['univ', '四大・短大'], ['all', '全生徒の進路先'], ['master', '指定校一覧'], ['slides', '保護者説明会スライド'], ['history', '過去の実績']];
     view.innerHTML = `
       <div class="page-head"><div><h1>年度末の資料</h1>
       <p class="lead">進路決定の内容と、過去の実績（R1〜）から、<b>進路先一覧・指定校一覧・進路指導まとめ</b>を作ります。今年度の列は自動で足されます。</p></div></div>
@@ -70,6 +70,36 @@ const YearendPage = {
   draw_work(el) { this.draw_list(el, 'work', YE.workHtml(), '年度別学校斡旋就職先一覧', 'portrait'); },
   draw_senshu(el) { this.draw_list(el, 'senshu', YE.senshuHtml(), '年度別専修各種進学先一覧', 'portrait'); },
   draw_univ(el) { this.draw_list(el, 'univ', YE.univHtml(), '年度別四大短大進学先一覧', 'portrait'); },
+
+  /* ---------- 全生徒の進路先一覧 ---------- */
+  allRows(dept = '') {
+    return Outcomes.list().filter(x => !dept || x.dept === dept).map(x => {
+      const d = x.d, no = x.s.no3;
+      return [no.charAt(1) ? `${no.charAt(0)}年${no.charAt(1)}組` : '', no, x.s.name || '', x.gender, x.dept, d.type || '未入力', d.type ? d.status : '', OutcomesPage.desc(d)];
+    });
+  },
+  ALL_HEAD: ['組', '番号', '氏名', '性', '学科', '区分', '状態', '進路先'],
+  allHtml(dept = '') {
+    const rows = this.allRows(dept);
+    return `<div class="p-page"><h2 class="p-title">${esc(Yr.long(Store.data.year))}　卒業生の進路先一覧${dept ? '（' + esc(dept) + '）' : ''}</h2>
+      <p class="p-meta">${rows.length}人（決定 ${rows.filter(r => r[6] === '決定').length}／活動中 ${rows.filter(r => r[6] === '活動中').length}／未入力 ${rows.filter(r => r[5] === '未入力').length}）</p>
+      <table class="p-table"><thead><tr>${this.ALL_HEAD.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr class="${r[5] === '未入力' ? 'p-shade' : ''}">${r.map(v => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <p class="p-note">※網掛けは進路が未入力の生徒</p></div>`;
+  },
+  draw_all(el) {
+    const st = this.state, all = Outcomes.list();
+    if (!all.length) { el.innerHTML = '<div class="empty"><p class="empty-title">生徒が登録されていません</p><p>［生徒・成績］で名簿を取り込み、［進路決定］を入力してください。</p></div>'; return; }
+    const depts = [...new Set(all.map(x => x.dept))];
+    if (st.allDept && !depts.includes(st.allDept)) st.allDept = '';
+    const dept = st.allDept || '';
+    el.innerHTML = `<div class="toolbar"><label class="inline">学科 <select id="yaD"><option value="">すべて</option>${depts.map(d => `<option ${dept === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label><span class="grow"></span>
+      <button class="btn" id="yeXlsx">Excel に出力</button><button class="btn btn-primary" id="yePrint">印刷</button></div>
+      <div class="card ye-screen sv-scroll">${this.allHtml(dept)}</div>`;
+    $('#yaD', el).addEventListener('change', e => { st.allDept = e.target.value; UI.refresh(); });
+    $('#yePrint', el).addEventListener('click', () => Print.open({ title: `進路先一覧_${Yr.label(Store.data.year)}`, html: this.allHtml(dept), orientation: 'portrait', margin: '12mm' }));
+    $('#yeXlsx', el).addEventListener('click', () => Excel.download(`全生徒の進路先一覧_${Yr.label(Store.data.year)}.xlsx`, [{ name: '進路先', rows: [this.ALL_HEAD, ...this.allRows(dept)], widths: [9, 8, 16, 4, 18, 8, 8, 60] }]));
+  },
 
   /* ---------- 指定校一覧 ---------- */
   draw_master(el) {
