@@ -4,7 +4,7 @@
    ============================================================ */
 
 /** 2次選考会議の確認リスト（空白→〇→済→空白 と押すたびに変わる）。生徒ごとに、いまの次（2次・3次…）の分を記録する */
-const SECOND_CHECKS = [['line', '一覧表線引き'], ['form', '求職確認書'], ['meet', '選考会議'], ['addrTel', '送付先住所確認Tel'], ['mailTel', '郵送した旨Tel']];
+const SECOND_CHECKS = [['meet', '選考会議'], ['form', '求職確認書'], ['addrTel', '送付先住所確認Tel'], ['mailTel', '郵送した旨Tel']];
 const CHECK_STEPS = ['', '〇', '済'];
 
 const SecondPage = {
@@ -38,7 +38,7 @@ const SecondPage = {
     const rows = all.filter(x => f === '' ? true : f === '未定' ? x.wait : f === '待' ? (!x.wait && !x.cur.result) : (!x.wait && x.cur.result === '内定'));
     view.innerHTML = `
       <div class="page-head">
-        <div><h1>選考会議（2次）</h1><p class="lead">1次で内定しなかった（不採用・辞退）生徒が、ここに自動で並びます。応募先を決め、試験日・合否まで続けて記録します。右端の確認欄（一覧表線引き〜郵送した旨Tel）は、押すたびに 空白→〇→済 と変わり、会議資料にも同じ印が出ます。</p></div>
+        <div><h1>選考会議（2次）</h1><p class="lead">1次で内定しなかった（不採用・辞退）生徒が、ここに自動で並びます。応募先を決め、試験日・合否まで続けて記録します。右端の確認欄（選考会議〜郵送した旨Tel）は、押すたびに 空白→〇→済 と変わり、会議資料にも同じ印が出ます。</p></div>
         <div class="head-actions">
           <button class="btn" id="scAdd" title="進路を変えた生徒など、1次に出ていない生徒をここに加えます">生徒を追加</button>
           <button class="btn btn-primary" id="scPrint" ${all.length ? '' : 'disabled'}>2次選考会議の資料を印刷</button>
@@ -157,18 +157,18 @@ const SecondPage = {
       const a = wait ? null : cur, job = a ? Apps.job(a) : null, won = !!a && a.result === '内定';
       return `<tr class="${won ? 'p-shade' : ''}">${cell(esc(s.no3), 'sc-no')}${cell(esc(s.name))}
         ${cell(job ? esc(Derive.short(job)) : '', 'sc-dl r')}${cell(job ? esc(job.company) : '', 'sc-dl l sm')}${cell(job ? esc(job.jobTitle || '') : '', 'sc-dl l xs')}
-        ${chk(s, 'line')}${cell(a ? esc(when(a.visitDate, a.visitTime)) : '', 'sm')}${chk(s, 'form')}${chk(s, 'meet')}${chk(s, 'addrTel')}
+        ${chk(s, 'meet')}${cell(a ? esc(when(a.visitDate, a.visitTime)) : '', 'sm')}${chk(s, 'form')}${chk(s, 'addrTel')}
         ${cell(a && a.docsSent ? esc(md(a.docsSentDate) || '〇') : '', 'sm')}${chk(s, 'mailTel')}${cell(a ? esc(when(a.examDate, a.examTime)) : '', 'sm')}
         ${cell(a && a.reportSubmitted ? '〇' : '')}${cell(a && a.result ? (a.result === '内定' ? '〇' : '×') : '')}</tr>`;
     };
-    const blank = () => `<tr>${cell('', 'sc-no')}${'<td></td>'.repeat(14)}</tr>`;
+    const blank = () => `<tr>${cell('', 'sc-no')}${'<td></td>'.repeat(13)}</tr>`;
     const body = all.map(rowHtml).join('') + Array(Math.max(0, 10 - all.length)).fill(blank()).join('');
     const circle = '<span class="sc-o"></span>';
     const sample = `<tr class="sc-ex"><td>例</td><td>〇〇　〇〇</td><td class="sc-dl r">50</td><td class="sc-dl l sm">ダミー1株式会社<br>〇〇工場</td><td class="sc-dl l xs">製造担当職</td>
-      <td>${circle}</td><td class="sm l">1/10(金)14:09～</td><td>${circle}</td><td>${circle}</td><td>${circle}</td><td class="xs">求人票マーカー先に送付<br>〇</td><td>${circle}</td><td class="sm">職場見学と同日実施</td><td>${circle}</td><td>${circle}</td></tr>`;
+      <td>${circle}</td><td class="sm l">1/10(金)14:09～</td><td>${circle}</td><td>${circle}</td><td class="xs">求人票マーカー先に送付<br>〇</td><td>${circle}</td><td class="sm">職場見学と同日実施</td><td>${circle}</td><td>${circle}</td></tr>`;
     const th = (t, cls = '') => `<th class="${cls}">${t}</th>`;
-    const head = `<tr>${th('生徒番号')}${th('氏名')}<th colspan="3">志望企業情報</th>${th('一覧表<br>線引き', 'xs')}${th('職場見学日時')}${th('求職<br>確認書', 'sm')}${th('選考<br>会議', 'sm')}${th('送付先住所<br>確認Tel', 'xxs')}${th('書類送付')}${th('郵送した旨Tel<br><span class="xs">(試験日書面依頼)</span>', 'sm')}${th('試験日')}${th('結果<br>報告書', 'sm')}${th('合否')}</tr>`;
-    const widths = [14.6, 20, 10.6, 32.7, 20, 8.2, 27.5, 10.1, 7.5, 10.4, 21.9, 21.6, 28.5, 9.2, 8.7];
+    const head = `<tr>${th('生徒番号')}${th('氏名')}<th colspan="3">志望企業情報</th>${th('選考<br>会議', 'sm')}${th('職場見学日時')}${th('求職<br>確認書', 'sm')}${th('送付先住所<br>確認Tel', 'xxs')}${th('書類送付')}${th('郵送した旨Tel<br><span class="xs">(試験日書面依頼)</span>', 'sm')}${th('試験日')}${th('結果<br>報告書', 'sm')}${th('合否')}</tr>`;
+    const widths = [14.6, 20, 10.6, 32.7, 20, 8.2, 35, 10.1, 10.4, 21.9, 21.6, 28.5, 9.2, 8.7];
     Print.open({
       title: `2次選考会議資料_${nendoLabel(Store.data.year)}`, orientation: 'landscape', margin: '8mm 6mm 6mm 6mm',
       html: `<div class="p-page sc-sheet">
