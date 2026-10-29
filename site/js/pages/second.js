@@ -158,17 +158,17 @@ const SecondPage = {
       return `<tr class="${won ? 'p-shade' : ''}">${cell(esc(s.no3), 'sc-no')}${cell(esc(s.name))}
         ${cell(job ? esc(Derive.short(job)) : '', 'sc-dl r')}${cell(job ? esc(job.company) : '', 'sc-dl l sm')}${cell(job ? esc(job.jobTitle || '') : '', 'sc-dl l xs')}
         ${chk(s, 'meet')}${cell(a ? esc(when(a.visitDate, a.visitTime)) : '', 'sm')}${chk(s, 'form')}${chk(s, 'addrTel')}
-        ${cell(a && a.docsSent ? esc(md(a.docsSentDate) || '〇') : '', 'sm')}${chk(s, 'mailTel')}${cell(a ? esc(when(a.examDate, a.examTime)) : '', 'sm')}
+        ${chk(s, 'mailTel')}${cell(a ? esc(when(a.examDate, a.examTime)) : '', 'sm')}
         ${cell(a && a.reportSubmitted ? '〇' : '')}${cell(a && a.result ? (a.result === '内定' ? '〇' : '×') : '')}</tr>`;
     };
-    const blank = () => `<tr>${cell('', 'sc-no')}${'<td></td>'.repeat(13)}</tr>`;
+    const blank = () => `<tr>${cell('', 'sc-no')}${'<td></td>'.repeat(12)}</tr>`;
     const body = all.map(rowHtml).join('') + Array(Math.max(0, 10 - all.length)).fill(blank()).join('');
     const circle = '<span class="sc-o"></span>';
     const sample = `<tr class="sc-ex"><td>例</td><td>〇〇　〇〇</td><td class="sc-dl r">50</td><td class="sc-dl l sm">ダミー1株式会社<br>〇〇工場</td><td class="sc-dl l xs">製造担当職</td>
-      <td>${circle}</td><td class="sm l">1/10(金)14:09～</td><td>${circle}</td><td>${circle}</td><td class="xs">求人票マーカー先に送付<br>〇</td><td>${circle}</td><td class="sm">職場見学と同日実施</td><td>${circle}</td><td>${circle}</td></tr>`;
+      <td>${circle}</td><td class="sm l">1/10(金)14:09～</td><td>${circle}</td><td>${circle}</td><td>${circle}</td><td class="sm">職場見学と同日実施</td><td>${circle}</td><td>${circle}</td></tr>`;
     const th = (t, cls = '') => `<th class="${cls}">${t}</th>`;
-    const head = `<tr>${th('生徒番号')}${th('氏名')}<th colspan="3">志望企業情報</th>${th('選考<br>会議', 'sm')}${th('職場見学日時')}${th('求職<br>確認書', 'sm')}${th('送付先住所<br>確認Tel', 'xxs')}${th('書類送付')}${th('郵送した旨Tel<br><span class="xs">(試験日書面依頼)</span>', 'sm')}${th('試験日')}${th('結果<br>報告書', 'sm')}${th('合否')}</tr>`;
-    const widths = [14.6, 20, 10.6, 32.7, 20, 8.2, 35, 10.1, 10.4, 21.9, 21.6, 28.5, 9.2, 8.7];
+    const head = `<tr>${th('生徒番号')}${th('氏名')}<th colspan="3">志望企業情報</th>${th('選考<br>会議', 'sm')}${th('職場見学日時')}${th('求職<br>確認書', 'sm')}${th('送付先住所<br>確認Tel', 'xxs')}${th('郵送した旨Tel<br><span class="xs">(試験日書面依頼)</span>', 'sm')}${th('試験日')}${th('結果<br>報告書', 'sm')}${th('合否')}</tr>`;
+    const widths = [14.6, 20, 10.6, 32.7, 20, 8.2, 42, 10.1, 10.4, 27.4, 34, 11, 10.5];
     Print.open({
       title: `2次選考会議資料_${nendoLabel(Store.data.year)}`, orientation: 'landscape', margin: '8mm 6mm 6mm 6mm',
       html: `<div class="p-page sc-sheet">
