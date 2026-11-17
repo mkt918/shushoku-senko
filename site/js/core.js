@@ -544,6 +544,7 @@ const Store = {
     this.data = normalizeData(data);
     this.fileName = fileName;
     this.fileHandle = handle;
+    if (handle) this._remember(handle); else this._forgetHandle();
     this.dirty = false;
     this._writeAutosave();
     this.emit();
@@ -555,7 +556,7 @@ const Store = {
     if (this.readOnly) return false;
     if (window.showOpenFilePicker) {
       try {
-        const [h] = await window.showOpenFilePicker({ types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
+        const [h] = await window.showOpenFilePicker({ mode: 'readwrite', types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
         const f = await h.getFile();
         return await this._loadText(await f.text(), f.name, h);
       } catch (e) {
@@ -577,6 +578,30 @@ const Store = {
       };
       inp.click();
     });
+  },
+
+  /* ---------- 保存先のファイルを覚える（開き直しても、同じファイルに上書きできる） ---------- */
+  async _remember(h) {
+    try { const db = await Watch._db(); await new Promise((res, rej) => { const t = db.transaction('handles', 'readwrite'); t.objectStore('handles').put(h, 'dataFile'); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch (e) { /* 覚えられなくても、保存はできる */ }
+  },
+  async _forgetHandle() {
+    try { const db = await Watch._db(); await new Promise(res => { const t = db.transaction('handles', 'readwrite'); t.objectStore('handles').delete('dataFile'); t.oncomplete = res; t.onerror = res; }); } catch (e) { /* 何もしない */ }
+  },
+  /** 起動したとき、一時保存の元のファイルが分かれば、その保存先に戻す（名前が同じときだけ） */
+  async restoreHandle() {
+    if (this.fileHandle || !this.fileName) return false;
+    try {
+      const db = await Watch._db();
+      const h = await new Promise((res, rej) => { const q = db.transaction('handles').objectStore('handles').get('dataFile'); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); });
+      if (h && h.name === this.fileName) { this.fileHandle = h; return true; }
+    } catch (e) { /* 戻せなければ、名前を付けて保存になる */ }
+    return false;
+  },
+  /** 書き込みの許可（開き直したあとは、ボタンを押したときに聞かれる） */
+  async _canWrite(h) {
+    if (!h.queryPermission) return true;
+    if (await h.queryPermission({ mode: 'readwrite' }) === 'granted') return true;
+    return await h.requestPermission({ mode: 'readwrite' }) === 'granted';
   },
 
   _json() { return JSON.stringify(this.data, null, 1); },
@@ -610,6 +635,7 @@ const Store = {
     if (this.readOnly) return false;
     if (this.fileHandle) {
       try {
+        if (!await this._canWrite(this.fileHandle)) { UI.toast('このファイルへの書き込みが許可されませんでした。保存先を選び直してください', 'warn'); throw new Error('denied'); }
         const body = await this._payload();
         const w = await this.fileHandle.createWritable();
         await w.write(body);
@@ -620,6 +646,7 @@ const Store = {
       } catch (e) {
         if (e.name === 'AbortError') return false;
         console.warn('上書き保存に失敗', e);
+        if (e.message !== 'denied') UI.toast(`「${this.fileName}」に上書きできませんでした（${e.message || e.name}）。保存先を選び直してください`, 'warn');
       }
     }
     return this.saveAs();
@@ -636,6 +663,7 @@ const Store = {
         await w.write(body);
         await w.close();
         this.fileHandle = h;
+        this._remember(h);
         this.fileName = h.name;
         this._saved();
         this._backup(body);

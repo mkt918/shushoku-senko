@@ -4,6 +4,7 @@
    ============================================================ */
 function main() {
   const r = Store.init();
+  if (r.restored) Store.restoreHandle();       // 前回のファイルに、そのまま上書き保存できるように
   UI.renderNav();
   UI.renderFileBar();
   Store.on(() => UI.renderFileBar());
