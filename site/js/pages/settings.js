@@ -158,6 +158,7 @@ const Settings = {
         <h2>データ管理</h2>
         <div class="btn-row">
           <button class="btn" id="dataNew">新しい空のデータを作る</button>
+          <button class="btn" id="saveTest" title="保存のしくみを調べます。テスト用のファイルを1つ作ります">保存のテスト</button>
           <button class="btn" id="authLock">ロックする（次に開くときパスワードを聞く）</button>
           <button class="btn btn-danger-ghost" id="clearCache">このブラウザの一時保存を消す</button>
         </div>
@@ -274,6 +275,12 @@ const Settings = {
       if (!await UI.confirm('空のデータで始めます。\n今のデータを保存していない場合は、先に「名前を付けて保存」をしてください。', { ok: '空のデータにする', danger: true })) return;
       Store.newFile(currentNendo());
       UI.go('dashboard');
+    });
+    $('#saveTest', view).addEventListener('click', async () => {
+      const L = await Store.diagnose();          // 最初の await がファイルを作る画面（ボタンの操作の中で呼ぶ）
+      const body = document.createElement('div');
+      body.innerHTML = `<p class="sub">保存のしくみを調べた結果です。×があるときは、この画面の内容を教えてください。</p><ul class="plain diag">${L.map(([m, t]) => `<li class="${m === '×' ? 'diag-ng' : ''}"><b>${m}</b> ${esc(t)}</li>`).join('')}</ul>`;
+      UI.modal({ title: '保存のテスト', body, wide: true });
     });
     $('#authLock', view).addEventListener('click', () => { Auth.lock(); location.reload(); });
     $('#clearCache', view).addEventListener('click', async () => {

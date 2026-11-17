@@ -19,10 +19,10 @@ function main() {
     if (await Store.open()) { UI.refresh(); UI.toast(`「${Store.fileName}」を開きました`); }
   }));
   $('#btnSave').addEventListener('click', () => guard(async () => {
-    if (await Store.save()) UI.toast(`「${Store.fileName}」に保存しました`);
+    if (await Store.save()) UI.toast(Store.lastMode === 'download' ? `「${Store.fileName}」をダウンロードしました（ダウンロードフォルダ。上書きではなく、新しいファイルです）` : `「${Store.fileName}」に保存しました`, Store.lastMode === 'download' ? 'warn' : 'ok');
   }));
   $('#btnSaveAs').addEventListener('click', () => guard(async () => {
-    if (await Store.saveAs()) UI.toast(`「${Store.fileName}」に保存しました`);
+    if (await Store.saveAs()) UI.toast(Store.lastMode === 'download' ? `「${Store.fileName}」をダウンロードしました（ダウンロードフォルダ。上書きではなく、新しいファイルです）` : `「${Store.fileName}」に保存しました`, Store.lastMode === 'download' ? 'warn' : 'ok');
   }));
 
   document.addEventListener('keydown', e => {

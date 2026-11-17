@@ -604,6 +604,33 @@ const Store = {
     return await h.requestPermission({ mode: 'readwrite' }) === 'granted';
   },
 
+  /** 保存のしくみを調べる。ボタンを押した操作の中で呼ぶ（最初の await が、ファイルを作る画面）。結果は [記号, 内容] の配列 */
+  async diagnose() {
+    const L = [];
+    const ok = (m) => L.push(['○', m]), ng = (m) => L.push(['×', m]), info = m => L.push(['・', m]);
+    info(`開いている場所：${location.protocol === 'file:' ? 'ファイル（file://）' : location.origin}`);
+    info(`ブラウザ：${/Edg\//.test(navigator.userAgent) ? 'Edge' : /Chrome\//.test(navigator.userAgent) ? 'Chrome' : /Firefox\//.test(navigator.userAgent) ? 'Firefox' : /Safari\//.test(navigator.userAgent) ? 'Safari' : '不明'}`);
+    (window.showSaveFilePicker ? ok : ng)(`ファイルを作る機能（showSaveFilePicker）：${window.showSaveFilePicker ? 'あります' : 'ありません（このブラウザでは、保存のたびに新しいファイルがダウンロードされます。Edge か Chrome を使ってください）'}`);
+    (window.isSecureContext ? ok : ng)(`安全な環境：${window.isSecureContext ? 'はい' : 'いいえ'}`);
+    try { localStorage.setItem('shushoku-senko:test', '1'); localStorage.removeItem('shushoku-senko:test'); ok('ブラウザへの一時保存：書き込めます'); } catch (e) { ng('ブラウザへの一時保存：書き込めません（' + (e.name || e.message) + '）。閉じると、保存していない内容が消えます'); }
+    info(`いまの保存先：${this.fileHandle ? '「' + this.fileName + '」に上書きします' : '決まっていません（上書き保存のとき、保存先を選びます）'}`);
+    if (window.showSaveFilePicker) {
+      try {
+        const h = await window.showSaveFilePicker({ suggestedName: '保存テスト.json', types: [{ description: 'テスト', accept: { 'application/json': ['.json'] } }] });
+        const body = JSON.stringify({ test: 'ok', at: new Date().toISOString() });
+        const w = await h.createWritable(); await w.write(body); await w.close();
+        const back = await (await h.getFile()).text();
+        (back === body ? ok : ng)(`テストのファイル「${h.name}」：${back === body ? '書き込めて、読み戻せました' : '書いた内容と読み戻した内容が違います'}`);
+        info('（このテストのファイルは、消して構いません）');
+      } catch (e) {
+        if (e.name === 'AbortError') info('ファイルを作る画面で、キャンセルされました');
+        else ng(`ファイルを作る・書く：失敗しました（${e.name}：${e.message}）`);
+      }
+    }
+    try { const t = await this._payload(); ok(`いまのデータを保存用の形にする：できます（${Math.round(t.length / 1024)} KB）`); } catch (e) { ng('いまのデータを保存用の形にする：失敗しました（' + (e.message || e.name) + '）'); }
+    return L;
+  },
+
   _json() { return JSON.stringify(this.data, null, 1); },
   /** ファイルに書く中身（暗号化の設定があれば暗号化する） */
   async _payload() { return this.crypt ? JSON.stringify(await Crypt.encrypt(this.data, this.crypt)) : this._json(); },
@@ -632,6 +659,7 @@ const Store = {
   },
 
   async save() {
+    this.lastMode = 'file';
     if (this.readOnly) return false;
     if (this.fileHandle) {
       try {
@@ -660,6 +688,7 @@ const Store = {
   },
 
   async saveAs() {
+    this.lastMode = 'file';
     if (this.readOnly) return false;
     const name = this.fileName || this.defaultFileName();
     if (window.showSaveFilePicker) {
@@ -683,6 +712,7 @@ const Store = {
     // フォールバック：ダウンロード
     downloadBlob(new Blob([await this._payload()], { type: 'application/json' }), name);
     this.fileName = name;
+    this.lastMode = 'download';
     this._saved();
     return true;
   },

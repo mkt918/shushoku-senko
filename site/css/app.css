@@ -855,3 +855,5 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 #scTable .sc-stack .w-memo { width: 130px !important; }
 #scTable .sc-co { min-width: 150px; max-width: 190px; }
 #scTable td { padding: 8px 6px; }
+.diag li { margin: 4px 0; }
+.diag-ng { color: var(--danger, #b42318); font-weight: 700; }
