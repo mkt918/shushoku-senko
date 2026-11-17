@@ -47,7 +47,6 @@ const Selection = {
     const m = new Map();
     // 順位が付かない（成績が未入力の）生徒も、並びの順で上下を決める
     const rank = new Map(this.seekers().map((r, i) => [r.s.id, r.jobRank ?? (1e6 + i)]));
-    this._rank = rank;
     const hasConf = new Set(Store.data.applications.filter(a => a.round === 1 && a.confirmed).map(a => a.studentId));
     const get = id => { if (!m.has(id)) m.set(id, { job: Jobs.byId(id), prefs: Array(PREF_N + 1).fill(0), total: 0, confirmed: 0, students: [], entries: [] }); return m.get(id); };
     for (const a of Store.data.applications) {
@@ -68,6 +67,7 @@ const Selection = {
       x.over = x.confirmed > x.cap;
       x.entries.sort((p, q) => p.rank - q.rank);
     }
+    m.rank = rank;       // 順位表（生徒 id → 順位）も一緒に返す
     return m;
   },
 
@@ -112,7 +112,7 @@ const Selection = {
         <thead><tr>${[['rank', '順位', 'num c-rank'], ['no3', '番号・氏名', 'c-name'], ['gender', '性別', 'c c-gender'], ['final', '最終P', 'num c-final'], ['life', '生活', 'num c-life'], ['special', '特活', 'num c-special'], ['mogi', '模試', 'num c-mogi']]
           .map(([k, l, c]) => `<th class="${c} sortable ${this.state.sort === k ? 'sorted-' + this.state.dir : ''}" data-sort="${k}">${l}</th>`).join('')}
         ${Array.from({ length: PREF_N }, (_, i) => `<th>第${i + 1}希望</th>`).join('')}</tr></thead>
-        <tbody>${this.sortedSeekers().map(r => this.rowHtml(r)).join('')}</tbody>
+        <tbody>${(st => this.sortedSeekers().map(r => this.rowHtml(r, st)).join(''))(this.jobStats())}</tbody>
       </table></div>
       <details class="card-fold" id="selJobsFold" ${this.state.jobsOpen ? 'open' : ''}><summary>求人ごとの希望状況</summary>
         <p class="help">確定数が本校への求人数を超えると赤く表示します。行をクリックすると希望者の一覧を開きます。</p>
@@ -188,12 +188,11 @@ const Selection = {
     });
   },
 
-  rowHtml(r) {
+  rowHtml(r, stats) {
     const s = r.s;
     const prefs = Apps.prefs(s.id);
-    const stats = this._stats || (this._stats = this.jobStats());
     const conf = Object.values(prefs).find(a => a.confirmed);
-    const myRank = (this._rank || new Map()).get(s.id) ?? Infinity;
+    const myRank = stats.rank.get(s.id) ?? Infinity;
     const cells = Array.from({ length: PREF_N }, (_, i) => {
       const p = i + 1;
       const a = prefs[p];
@@ -234,12 +233,11 @@ const Selection = {
   /** 行を描き直す。Tab で次の欄へ移った直後でもフォーカスを保つため、次のタイミングで行う */
   redrawRows() {
     setTimeout(() => {
-      this._stats = null;
       const tbody = $('#selTable tbody');
       if (!tbody) return;
       const ae = document.activeElement;
       const keep = ae && ae.classList && ae.classList.contains('slot-no') ? [ae.dataset.sid, ae.dataset.pref] : null;
-      tbody.innerHTML = this.sortedSeekers().map(r => this.rowHtml(r)).join('');
+      tbody.innerHTML = (st => this.sortedSeekers().map(r => this.rowHtml(r, st)).join(''))(this.jobStats());
       this.drawJobs($('#selJobs'));
       const sb = $('#selStats'); if (sb) sb.innerHTML = this.statsHtml(this.seekers());
       this.drawList($('#selList'));
@@ -300,32 +298,14 @@ const Selection = {
 
   /** 求人の検索・選択ダイアログ */
   async pickJob(studentId, pref, preset = '') {
-    const body = document.createElement('div');
-    body.innerHTML = `<input type="search" id="pkQ" class="w-full" placeholder="下4桁・事業所名・職種で検索" value="${esc(preset)}">
-      <div id="pkList" class="pick-list"></div>
-      <button class="btn btn-sm btn-danger-ghost" id="pkClear">この希望を空にする</button>`;
-    let chosen;
-    const draw = () => {
-      const q = toHalf($('#pkQ', body).value).trim().toLowerCase();
-      const list = Store.data.jobs.filter(j => !q || [Derive.short(j), j.company, j.jobTitle, j.kana].some(v => v && toHalf(v).toLowerCase().includes(q))).slice(0, 80);
-      $('#pkList', body).innerHTML = list.length ? list.map(j => `<button class="pick-item" data-id="${j.id}">
-        <span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}　求人${Jobs.capacity(j)}人</small></span>${j.kind !== '一般' ? `<span class="tag tag-warn">${esc(j.kind)}</span>` : '<span></span>'}</button>`).join('')
-        : '<p class="sub">見つかりません。事前選考・指名求人は「求人票」で区分を選んで登録してください。</p>';
-    };
-    const p = UI.modal({
-      title: `第${pref}希望の求人を選ぶ`, body, wide: true, buttons: [{ label: 'キャンセル', value: null }],
-      onOpen: root => {
-        draw();
-        $('#pkQ', root).addEventListener('input', draw);
-        root.addEventListener('click', e => {
-          const it = e.target.closest('.pick-item');
-          if (it) { chosen = it.dataset.id; root.closest('.modal-backdrop').querySelector('[data-close]').click(); }
-          if (e.target.id === 'pkClear') { chosen = ''; root.closest('.modal-backdrop').querySelector('[data-close]').click(); }
-        });
-      },
+    const r = await UI.pick({
+      title: `第${pref}希望の求人を選ぶ`, placeholder: '下4桁・事業所名・職種で検索', preset, immediate: true, clear: 'この希望を空にする',
+      items: Store.data.jobs, text: j => [Derive.short(j), j.company, j.jobTitle, j.kana],
+      row: j => Jobs.pickRow(j, { tag: j.kind !== '一般' ? `<span class="tag tag-warn">${esc(j.kind)}</span>` : '' }),
+      empty: '見つかりません。事前選考・指名求人は「求人票」で区分を選んで登録してください。',
     });
-    await p;
-    if (chosen !== undefined) this.setSlot(studentId, pref, chosen || null);
+    if (r.res === 'ok') this.setSlot(studentId, pref, r.id);
+    else if (r.res === 'clear') this.setSlot(studentId, pref, null);
     else this.redrawRows();
   },
 
@@ -376,7 +356,7 @@ const Selection = {
 
   /**
    * 上位から確定案：確定済みの生徒はそのまま。未確定の生徒を就職順位の順に、
-   * 第1希望から「確定数 < 求人数」の求人に確定する（求人数未入力は枠なし扱い）。
+   * 第1希望から「確定数 < 求人数」の求人に確定する（求人数未入力は1人）。
    * 同順位の生徒が残り枠を取り合う場合は確定せず、会議で判断するよう一覧に出す。
    */
   async autoPropose() {
@@ -423,7 +403,7 @@ const Selection = {
   /** 自分より上位の生徒で、この求人を確定している人（「何位 番号 氏名 指名済」） */
   nominatedBy(stats, r, jobId) {
     const x = stats.get(jobId); if (!x) return [];
-    const mine = (this._rank || new Map()).get(r.s.id) ?? Infinity;
+    const mine = stats.rank.get(r.s.id) ?? Infinity;
     return x.entries.filter(e => e.s.id !== r.s.id && e.a.confirmed && e.rank < mine)
       .map(e => `${e.rank < 1e6 ? e.rank + '位' : '順位なし'} ${e.s.no3} ${e.s.name || ''} 指名済`);
   },
@@ -444,7 +424,7 @@ const Selection = {
   print() {
     const rows = this.seekers();
     const title = `${nendoLabel(Store.data.year)}　学校斡旋就職希望者　選考会議資料`;
-    const stats = this.jobStats();   // 上位の確定を調べる（順位は this._rank）
+    const stats = this.jobStats();   // 上位の確定を調べる
     const cell = (a, j, r) => {
       if (!a) return '';
       const nom = this.nominatedBy(stats, r, a.jobId);
@@ -476,4 +456,4 @@ const Selection = {
   },
 };
 
-Pages.register({ id: 'selection', no: 4, group: '選考', title: '選考会議（1次）', render: v => { Selection._stats = null; Selection.render(v); } });
+Pages.register({ id: 'selection', no: 4, group: '選考', title: '選考会議（1次）', render: v => Selection.render(v) });

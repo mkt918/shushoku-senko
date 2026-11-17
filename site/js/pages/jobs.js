@@ -66,6 +66,11 @@ const Jobs = {
   /** 下4桁で検索（選考会議などで使う） */
   byShort(s) { const k = String(num(s) ?? s); return this.all().filter(j => Derive.short(j) === k); },
 
+  /** 求人を選ぶ画面の1行（下4桁・事業所・職種・求人数） */
+  pickRow(j, { extra = '', tag = '' } = {}) {
+    return `<span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}　求人${this.capacity(j)}人${extra}</small></span>${tag || '<span></span>'}`;
+  },
+
   /** 下4桁の重複 */
   duplicates() {
     const m = {};

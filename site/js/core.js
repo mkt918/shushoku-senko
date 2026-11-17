@@ -517,7 +517,7 @@ const Store = {
       const c = this.crypt;
       Crypt.encrypt(this.data, c).then(w => {
         try { if (this.crypt === c) localStorage.setItem(APP.storageKey, JSON.stringify(Object.assign(meta, { enc: w }))); }
-        catch (e) { console.warn('一時保存に失敗', e); }
+        catch (e) { console.warn('一時保存に失敗', e); UI && UI.toast('ブラウザへの一時保存に失敗しました。こまめにファイル保存してください。', 'warn'); }
       });
       return;
     }
@@ -820,6 +820,12 @@ const Apps = {
     return Store.data.students.map(s => ({ s, a: this.current(s.id) })).filter(x => x.a);
   },
   job(a) { return a ? Jobs.byId(a.jobId) : null; },
+  /** 応募の項目を書き換える。送付日・結果日の自動入力など、データの決まりはここ（画面は表示だけ） */
+  set(a, k, v) {
+    a[k] = v;
+    if (k === 'docsSent' && v && !a.docsSentDate) a.docsSentDate = todayISO();
+    if (k === 'result') { if (a.result && !a.resultDate) a.resultDate = todayISO(); if (!a.result) a.resultDate = ''; }   // 合否を選ぶと結果日に今日が入る（空欄に戻すと消える）
+  },
   /** 職場見学・送付・試験・合否などの記録がある（確定済みも含む）。消す・付け替えるときは確認する */
   hasRecord(a) {
     return !!(a && (a.confirmed || a.visitCaller || a.visitDate || a.visitTime || a.visitNote || a.visitDone || a.docsSent

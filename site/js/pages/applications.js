@@ -61,6 +61,10 @@ const AppsPage = {
   },
 
   resultLabel(v) { return v === '内定' ? '〇 内定' : v === '不採用' ? '× 不採用' : (v || '—'); },
+  /** 合否の選択欄（応募・受験と、2次の表で共通） */
+  resultSelect(a) {
+    return `<select data-aid="${a.id}" data-f="result">${RESULTS.map(r => `<option value="${r}" ${a.result === r ? 'selected' : ''}>${this.resultLabel(r)}</option>`).join('')}</select>`;
+  },
 
   statsHtml() {
     const all = Apps.currents(), need = this.needNext();
@@ -107,7 +111,7 @@ const AppsPage = {
       <td class="sm">${job ? `<span class="mono">${esc(Derive.short(job))}</span> ${esc(job.company)}<br><span class="sub">${esc(job.jobTitle || '')}</span>` : '—'}</td>
       <td class="nowrap">${ck('docsSent')} ${f('docsSentDate', 'date', 'w-date')}</td>
       <td>${f('examDate', 'date', 'w-date')}</td><td>${f('examTime', 'text', 'w-hm')}</td>
-      <td><select data-aid="${a.id}" data-f="result">${RESULTS.map(r => `<option value="${r}" ${a.result === r ? 'selected' : ''}>${this.resultLabel(r)}</option>`).join('')}</select></td>
+      <td>${this.resultSelect(a)}</td>
       <td>${f('resultDate', 'date', 'w-date')}</td><td class="c">${ck('reportSubmitted')}</td><td>${f('note', 'text', 'w-memo')}</td></tr>`;
   },
 
@@ -115,17 +119,14 @@ const AppsPage = {
     const a = Store.data.applications.find(x => x.id === el.dataset.aid);
     if (!a) return;
     const k = el.dataset.f;
-    a[k] = el.type === 'checkbox' ? el.checked : el.value.trim();
-    if (k === 'examTime') { a[k] = el.value = VisitsPage.hm(el.value); }
-    if (k === 'docsSent' && el.checked && !a.docsSentDate) {
-      a.docsSentDate = todayISO();
-      const d = el.closest('tr') && el.closest('tr').querySelector('[data-f="docsSentDate"]'); if (d) d.value = a.docsSentDate;   // 隣の日付欄にも出す
+    let v = el.type === 'checkbox' ? el.checked : el.value.trim();
+    if (k === 'examTime') v = el.value = VisitsPage.hm(el.value);
+    Apps.set(a, k, v);
+    if (k === 'docsSent' && v) {      // 隣の日付欄にも出す
+      const d = el.closest('tr') && el.closest('tr').querySelector('[data-f="docsSentDate"]'); if (d) d.value = a.docsSentDate;
     }
     if (k === 'docsSent') setTimeout(() => SendDocs.redraw(), 0);   // 上の送付カードの「未送付」を更新する
-    if (k === 'result') {      // 合否を選ぶと結果日に今日が入る（わからなければそのままでよい。空欄でも内定として数える）
-      if (a.result && !a.resultDate) a.resultDate = todayISO();
-      if (!a.result) a.resultDate = '';
-    }
+    if (k === 'result') { const d = el.closest('tr') && el.closest('tr').querySelector('[data-f="resultDate"]'); if (d) d.value = a.resultDate || ''; }
     Store.changed();
     if (k === 'result') {
       // 画面全体は描き直さず、この行の色と結果日、上の人数・下の一覧だけ更新する（毎回の再表示をしない）
@@ -143,28 +144,15 @@ const AppsPage = {
     const cur = Apps.current(studentId);
     if (!cur && !Students.lateEntrant(s)) { UI.toast('1次の応募先は「選考会議（1次）」で確定してください', 'warn'); return; }
     const round = cur ? cur.round + 1 : 2;
-    const body = document.createElement('div');
-    body.innerHTML = `<p>${esc(Students.label(s))}　の <b>${round}次</b> の応募先</p>
-      <input type="search" id="nxQ" class="w-full" placeholder="下4桁・事業所名・職種で検索"><div id="nxList" class="pick-list"></div>`;
-    let chosen = null;
     const used = new Set(Apps.of(studentId).filter(a => a.confirmed).map(a => a.jobId));
     const cnt = jobId => { const l = Store.data.applications.filter(a => a.jobId === jobId && a.confirmed); return { n: l.length, won: l.filter(a => a.result === '内定').length }; };
-    const draw = () => {
-      const q = toHalf($('#nxQ', body).value).trim().toLowerCase();
-      const list = Store.data.jobs.filter(j => !q || [Derive.short(j), j.company, j.jobTitle].some(v => v && toHalf(v).toLowerCase().includes(q))).slice(0, 80);
-      $('#nxList', body).innerHTML = list.map(j => `<button class="pick-item ${chosen === j.id ? 'on' : ''}" data-id="${j.id}">
-        <span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}　求人${Jobs.capacity(j)}人・応募${cnt(j.id).n}人${cnt(j.id).won ? '・内定' + cnt(j.id).won + '人' : ''}</small></span>${used.has(j.id) ? '<span class="tag">応募済み</span>' : '<span></span>'}</button>`).join('') || '<p class="sub">見つかりません</p>';
-    };
-    const res = await UI.modal({
-      title: `${round}次の応募先`, body, wide: true,
-      buttons: [{ label: '進学に変更する', value: 'edu' }, { label: '自己開拓に変更する', value: 'self' }, { label: '家事手伝いに変更する', value: 'home' },
-        { label: 'キャンセル', value: null }, { label: '確定する', kind: 'primary', value: 'ok', onClick: () => { if (!chosen) { UI.toast('求人を選んでください', 'warn'); return false; } } }],
-      onOpen: root => {
-        draw();
-        $('#nxQ', root).addEventListener('input', draw);
-        root.addEventListener('click', e => { const it = e.target.closest('.pick-item'); if (it) { chosen = it.dataset.id; draw(); } });
-      },
+    const r = await UI.pick({
+      title: `${round}次の応募先`, intro: `<p>${esc(Students.label(s))}　の <b>${round}次</b> の応募先</p>`, placeholder: '下4桁・事業所名・職種で検索',
+      items: Store.data.jobs, text: j => [Derive.short(j), j.company, j.jobTitle], okLabel: '確定する', need: '求人を選んでください',
+      row: j => { const c = cnt(j.id); return Jobs.pickRow(j, { extra: `・応募${c.n}人${c.won ? '・内定' + c.won + '人' : ''}`, tag: used.has(j.id) ? '<span class="tag">応募済み</span>' : '' }); },
+      buttons: [{ label: '進学に変更する', value: 'edu' }, { label: '自己開拓に変更する', value: 'self' }, { label: '家事手伝いに変更する', value: 'home' }],
     });
+    const res = r.res, chosen = r.id;
     if (res === 'edu' || res === 'self' || res === 'home') { await this.changeCourse(s, res); return; }
     if (res !== 'ok') return;
     const a = blankApplication(studentId, chosen, round, 1);

@@ -307,6 +307,7 @@ Settings.nextYear = async function () {
   const next = blankData(d.year + 1);
   next.settings = clone(d.settings);
   next.settings.docs = { visitLetterDate: '', sendDate: '' };
+  next.settings.yearend = Object.assign({}, next.settings.yearend, { asOf: '' });
   if (carry) {
     const seen = new Set();
     for (const j of d.jobs) {

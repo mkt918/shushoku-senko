@@ -124,6 +124,38 @@ const UI = {
     });
   },
 
+  /**
+   * 「検索して1つ選ぶ」ダイアログ。返り値は { res, id }。
+   * res＝'ok'（選んだ）／押した追加ボタンの値／'clear'（空にする）／null（取り消し）。id＝選んだ項目の id
+   * items＝id を持つ項目の配列／text(x)＝検索に使う文字の配列／row(x)＝1行の中身（HTML）／immediate＝押した時点で決める／clear＝「空にする」ボタンの名前
+   */
+  async pick({ title, intro = '', placeholder = '', items, text, row, preset = '', buttons = [], okLabel = '決定', need = '選んでください', empty = '見つかりません', immediate = false, clear = '', limit = 80 }) {
+    const body = document.createElement('div');
+    body.innerHTML = `${intro}<input type="search" class="w-full pk-q" placeholder="${esc(placeholder)}" value="${esc(preset)}"><div class="pick-list pk-list"></div>${clear ? `<button type="button" class="btn btn-sm btn-danger-ghost pk-clear">${esc(clear)}</button>` : ''}`;
+    let chosen = null, direct = null;
+    const draw = () => {
+      const q = toHalf($('.pk-q', body).value).trim().toLowerCase();
+      const list = items.filter(x => !q || text(x).some(v => v && toHalf(v).toLowerCase().includes(q))).slice(0, limit);
+      $('.pk-list', body).innerHTML = list.length ? list.map(x => `<button type="button" class="pick-item ${chosen === x.id ? 'on' : ''}" data-id="${esc(x.id)}">${row(x)}</button>`).join('') : `<p class="sub">${empty}</p>`;
+    };
+    const all = [...buttons, { label: 'キャンセル', value: null }];
+    if (!immediate) all.push({ label: okLabel, kind: 'primary', value: 'ok', onClick: () => { if (!chosen) { UI.toast(need, 'warn'); return false; } } });
+    const res = await this.modal({
+      title, body, wide: true, buttons: all,
+      onOpen: root => {
+        draw();
+        $('.pk-q', root).addEventListener('input', draw);
+        root.addEventListener('click', e => {
+          const shut = () => root.closest('.modal-backdrop').querySelector('[data-close]').click();
+          const it = e.target.closest('.pick-item');
+          if (it) { chosen = it.dataset.id; if (immediate) { direct = 'ok'; shut(); } else draw(); return; }
+          if (e.target.closest('.pk-clear')) { chosen = ''; direct = 'clear'; shut(); }
+        });
+      },
+    });
+    return { res: direct || res, id: chosen };
+  },
+
   /** パスワードを聞く。twice＝確認のためにもう一度入れる。取り消したら null */
   async askPassword({ title = 'パスワード', message = '', twice = false, ok = 'OK' } = {}) {
     const body = document.createElement('div');
