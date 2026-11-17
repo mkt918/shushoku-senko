@@ -805,3 +805,8 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 #scTable th:nth-child(3), #scTable td:nth-child(3) { left: 138px; min-width: 130px; box-shadow: 2px 0 0 var(--line); }
 #scTable tr.res-内定 td:nth-child(-n+3) { background: var(--ok-soft); }
 #scTable tr.res-不採用 td:nth-child(-n+3), #scTable tr.res-辞退 td:nth-child(-n+3) { background: var(--surface-2); }
+
+/* 生徒の編集画面 ⑧ 進路先 */
+.dest-sum { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+
+.dest-own { width: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }

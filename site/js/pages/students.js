@@ -143,6 +143,8 @@ const StudentsPage = {
       { k: 'disability', label: '報告書', type: 'checkbox', checkLabel: '様式13の（ ）内数（障害者数）に計上' },
       { k: 'group', label: '職場見学グループ', narrow: true },
       { k: 'note', label: 'メモ', type: 'textarea', wide: true },
+      { sec: '⑧ 進路先', cols: 1 },
+      { type: 'derived', k: 'dest', label: '' },
     ];
   },
 
@@ -266,6 +268,43 @@ const StudentsPage = {
       + '<div class="sv-b">' + line('進路', p.course) + line('就職方法', p.jobMethod) + line('希望職種', p.job) + line('学校種別', p.school) + line('希望分野', p.field) + line('志望先', p.destination) + line('受験方法', p.method) + line('悩み', p.worry) + line('その他', p.other) + line('未定の理由', p.reason) + '</div>');
   },
 
+  /** ⑧ 進路先：いまの進路決定を見せ、入力・変更は「進路決定」の入力画面を開いて行う */
+  drawDest(root, s) {
+    const el = $('[data-derived="dest"]', root); if (!el) return;
+    if (!s) { el.innerHTML = '<p class="sub">進路先は、生徒を保存してから入力できます。</p>'; return; }
+    const d = Outcomes.of(s), desc = OutcomesPage.desc(d);
+    const log = (s.destLog || []).map(h => `${esc(h.at)}　${esc(h.from)} → ${esc(h.to)}`).join('／');
+    el.innerHTML = `<div class="dest-sum">
+      <div>${d.type ? `<b>${esc(d.type)}</b> <span class="tag ${d.status === '決定' ? 'tag-accent' : 'tag-warn'}">${esc(d.status)}</span>${d.auto ? ' <span class="sub">（内定した求人から自動）</span>' : ''}` : '<span class="tag tag-warn">未入力</span>'}
+        ${desc ? `　<span>${esc(desc)}</span>` : ''}</div>
+      ${log ? `<p class="sub">変更履歴：${log}</p>` : ''}
+      <button type="button" class="btn btn-sm" data-destedit>進路先を入力・変更する</button>
+      <span class="sub">（区分を変えると、②の進路・受験方法もそろいます）</span></div>${this.ownHtml(s, d)}`;
+  },
+
+  /** 学校斡旋でない就職（自己開拓・縁故・公務員など）：求人票と結びつかないので、一部の項目をここで直接入力する */
+  isOwn(s) { return s.course === '就職' && !!s.method && s.method !== '学校斡旋'; },
+  ownHtml(s, d) {
+    if (!this.isOwn(s)) return '';
+    const cur = d.type === '就職' ? d : {};
+    const inp = (k, v, w = '') => `<label class="field ${w}"><span class="label">${{ company: '会社名', jobTitle: '職種' }[k]}</span><input data-dk="${k}" value="${esc(v ?? '')}" autocomplete="off"></label>`;
+    const sel = (k, label, opts, v) => `<label class="field"><span class="label">${label}</span><select data-dk="${k}">${opts.map(([a, b]) => `<option value="${esc(a)}" ${String(v ?? '') === a ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></label>`;
+    return `<div class="dest-own"><p class="sub">${esc(s.method)}の就職は求人票と結びつかないので、ここに直接入力します（保存すると、進路決定にも反映されます）。</p><div class="grid">
+      ${sel('status', '状態', OC.STATUS.map(x => [x, x === '決定' ? '決定（就職先が決まった）' : '活動中（まだ決まっていない）']), cur.status || '活動中')}
+      ${inp('company', cur.company, 'wide')}
+      ${sel('ind', '業種', [['', '（未設定）'], ...Object.entries(OC.IND_NAMES).map(([k, v]) => [k, `${OC.fw(k)} ${v}`])], cur.ind)}
+      ${sel('occ', '職業分類', [['', '（未設定）'], ...Object.entries(OC.OCC_SHORT).map(([k, v]) => [k, v])], cur.occ)}
+      ${inp('jobTitle', cur.jobTitle, 'wide')}</div></div>`;
+  },
+  /** ⑧の直接入力を、進路決定（s.dest）に書く（欄がないとき・全部空のときは何もしない） */
+  applyOwn(root, s) {
+    const els = $$('[data-dk]', root); if (!els.length || !this.isOwn(s)) return;
+    const v = {}; els.forEach(e => { v[e.dataset.dk] = e.value.trim(); });
+    const old = s.dest && s.dest.type === '就職' ? s.dest : null;
+    if (!old && !v.company && !v.ind && !v.occ && !v.jobTitle) return;
+    s.dest = Object.assign({}, old || {}, { type: '就職', status: v.status || '決定', jobKind: s.method === '公務員' ? '公務' : '斡旋外', company: v.company, ind: v.ind, occ: v.occ, jobTitle: v.jobTitle });
+  },
+
   showPoints(root) {
     const f = this.fields();
     const s = this.fromForm(Form.read(root, f), blankStudent(), this.gradesToObj(this.readGrades(root)));
@@ -287,11 +326,19 @@ const StudentsPage = {
     body.innerHTML = `<div class="fs-cols">${Form.html(fields, this.toForm(existing || blankStudent()))}</div>`;
     this.drawGrades(body, existing ? existing.grades : blankStudent().grades);
     this.bindGrades(body);
+    this.drawDest(body, existing);
     this.drawSurvey(body, !existing);   // 新しく追加する生徒だけ、空欄に調査の回答を入れる（既存の生徒は自動反映ずみ）
     body.addEventListener('input', e => { if (e.target.matches('[data-k="no3"]')) this.drawSurvey(body, false); this.showPoints(body); });
     body.addEventListener('change', () => this.showPoints(body));
     body.addEventListener('click', e => {
       if (e.target.closest('[data-svapply]')) { this.drawSurvey(body, false, true); this.showPoints(body); }
+      if (e.target.closest('[data-destedit]')) {
+        OutcomesPage.edit(existing.id).then(() => {
+          // 進路の区分を変えると進路・受験方法が変わるので、この画面の欄も合わせる（保存で古い値に戻さない）
+          [['course', existing.course], ['method', existing.method]].forEach(([k, v]) => { const i = $('[data-k="' + k + '"]', body); if (i) i.value = v || ''; });
+          this.drawDest(body, existing);
+        });
+      }
     });
     // 一覧の並び（検索・並び替えのまま）で、前後の生徒
     const order = existing ? (orderIds || this.filtered().map(x => x.s.id)) : [];
@@ -307,6 +354,7 @@ const StudentsPage = {
         if (dup && dup !== existing) { UI.toast(`番号 ${no} は既に登録されています`, 'warn'); return false; }
         const s = existing || blankStudent();
         this.fromForm(v, s, this.gradesToObj(this.readGrades(root)));
+        this.applyOwn(root, s);
         if (!existing) Store.data.students.push(s);
         Store.changed();
     };
