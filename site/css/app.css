@@ -894,3 +894,25 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .chk-row { display: flex; gap: 6px; }
 .chk-row .chk-chip { flex: 1; height: 34px; }
 @media (max-width: 1180px) { .sc-card, .sc-card.is-wait { grid-template-columns: 180px minmax(0, 1fr); grid-template-areas: "id now" "id exam" "id res" "prev prev" "chk chk" "memo memo"; } .sc-card.is-wait { grid-template-areas: "id now" "id hint" "prev prev" "chk chk"; } }
+
+/* ===== 選考会議（2次）のカード：整える ===== */
+.sc-card { border-radius: 10px; box-shadow: 0 1px 2px rgba(0, 0, 0, .05); padding: 14px 18px; gap: 12px 24px; }
+.sc-card:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+.sc-prev, .sc-chk, .sc-memo { border-top: 1px dashed var(--line-strong); padding-top: 10px; }
+.sc-card.is-wait .sc-prev, .sc-card.is-wait .sc-chk { padding-top: 10px; }
+.sc-lab { font-weight: 600; letter-spacing: .02em; margin-bottom: 4px; }
+.sc-id { padding-right: 6px; }
+.sc-rank { width: 38px; height: 38px; font-size: 15px; background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.sc-name { font-size: 16px; display: block; line-height: 1.3; }
+.sc-co { font-size: 15px; font-weight: 700; line-height: 1.4; }
+.sc-co .mono { font-weight: 400; color: var(--ink-3); font-size: 13px; }
+.sc-card .sc-pair input, .sc-card .sc-pair select, .sc-card .sc-memo input { height: 36px; border-radius: 6px; }
+.sc-card .sc-h { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 3px 0; }
+.sc-card .sc-hc { max-width: none; }
+.sc-card .sc-h select { width: 100px; height: 32px; }
+.chk-row .chk-chip { height: 36px; border-radius: 8px; }
+.chk-chip span { font-weight: 600; }
+.sc-memo { gap: 12px; }
+.sc-memo .link-btn { margin-left: auto; color: var(--danger, #b42318); white-space: nowrap; font-size: 12px; }
+.sc-card.is-wait .sc-now .btn { min-height: 40px; padding: 0 18px; font-size: 15px; }
+.sc-state { margin-top: 6px; }
