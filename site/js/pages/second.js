@@ -6,7 +6,7 @@
 /** 2次選考会議の確認リスト（空白→〇→済→空白 と押すたびに変わる）。生徒ごとに、いまの次（2次・3次…）の分を記録する */
 const SECOND_CHECKS = [['meet', '選考会議'], ['form', '求職確認書'], ['addrTel', '送付先住所確認Tel'], ['mailTel', '郵送した旨Tel']];
 const CHECK_STEPS = ['', '〇', '済'];
-const SECOND_SHORT = { meet: '選考会議', form: '求職確認書', addrTel: '住所Tel', mailTel: '郵送Tel' };   // ボタンに出す短い名前
+const SECOND_SHORT = { meet: '選考会議', form: '確認書', addrTel: '住所Tel', mailTel: '郵送Tel' };   // ボタンに出す短い名前
 
 const SecondPage = {
   state: { filter: '' },

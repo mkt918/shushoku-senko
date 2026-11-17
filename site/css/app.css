@@ -857,3 +857,10 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 #scTable td { padding: 8px 6px; }
 .diag li { margin: 4px 0; }
 .diag-ng { color: var(--danger, #b42318); font-weight: 700; }
+
+/* 2次の確認ボタン：2列がはみ出して、となりの列と重ならないように */
+.chk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 188px; }
+.chk-chip { min-width: 0; overflow: hidden; padding: 0 6px; }
+.chk-chip span { overflow: hidden; text-overflow: ellipsis; }
+#scTable td:nth-child(8) { min-width: 200px; }
+#scTable td:nth-child(9) { min-width: 150px; }
