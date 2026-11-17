@@ -688,7 +688,6 @@ const Store = {
         this._backup(body);
         return true;
       } catch (e) {
-        if (e.name === 'AbortError') return false;
         console.warn('上書き保存に失敗', e);
         this._log('上書きに失敗：' + (e.name || '') + ' ' + (e.message || ''));
         // 消えてしまう通知ではなく、理由が読めるダイアログで知らせる
@@ -709,22 +708,39 @@ const Store = {
     if (this.readOnly) return false;
     const name = this.fileName || this.defaultFileName();
     if (window.showSaveFilePicker) {
+      let h = null;
       try {
-        const h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
-        const body = await this._payload();
-        const w = await h.createWritable();
-        await w.write(body);
-        await w.close();
-        this.fileHandle = h;
-        this._remember(h);
-        this.fileName = h.name;
-        this._saved();
-        this._backup(body);
-        return true;
+        h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
       } catch (e) {
-        if (e.name === 'AbortError') return false;
+        if (e.name === 'AbortError') { this._log('保存先を選ぶ画面が閉じられました（キャンセル）'); return false; }
         if (!(e.name === 'SecurityError' || e.name === 'NotAllowedError')) throw e;
         this._log('ファイルを作る画面が使えず、ダウンロードに切り替え：' + e.name + ' ' + (e.message || ''));
+      }
+      if (h) {
+        this._log('保存先を選びました：' + h.name);
+        try {
+          const body = await this._payload();
+          this._log('書き込み開始（' + Math.round(body.length / 1024) + ' KB）');
+          const w = await h.createWritable();
+          await w.write(body);
+          await w.close();
+          this._log('書き込み完了');
+          this.fileHandle = h;
+          this._remember(h);
+          this.fileName = h.name;
+          this._saved();
+          this._backup(body);
+          return true;
+        } catch (e) {
+          // ここでの失敗は、選ぶ画面のキャンセルではない（AbortError でも、書き込みの失敗として知らせる）
+          this._log('書き込みに失敗：' + (e.name || '') + ' ' + (e.message || ''));
+          await UI.modal({
+            title: '保存できませんでした',
+            body: `<p class="confirm-msg">「${esc(h.name)}」に書き込めませんでした。<br>理由：${esc(((e.name || '') + ' ' + (e.message || '')).trim())}</p><p class="sub">別の場所（デスクトップなど）や別の名前で、もう一度保存してみてください。</p>`,
+            buttons: [{ label: '閉じる', value: null }],
+          });
+          return false;
+        }
       }
     }
     // フォールバック：ダウンロード
