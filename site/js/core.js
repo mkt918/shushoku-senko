@@ -709,12 +709,25 @@ const Store = {
     const name = this.fileName || this.defaultFileName();
     if (window.showSaveFilePicker) {
       let h = null;
+      const t0 = Date.now();
       try {
         h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: '就職選考データ', accept: { 'application/json': ['.json'] } }] });
       } catch (e) {
-        if (e.name === 'AbortError') { this._log('保存先を選ぶ画面が閉じられました（キャンセル）'); return false; }
-        if (!(e.name === 'SecurityError' || e.name === 'NotAllowedError')) throw e;
-        this._log('ファイルを作る画面が使えず、ダウンロードに切り替え：' + e.name + ' ' + (e.message || ''));
+        if (e.name === 'AbortError') {
+          this._log('保存先を選ぶ画面が閉じられました（キャンセル。表示から ' + (Date.now() - t0) + ' ミリ秒）');
+          if (Date.now() - t0 > 3000) return false;      // 時間をかけて閉じた＝利用者のキャンセル
+          // すぐ閉じたときは、保存先を選べない環境（アプリ内のブラウザなど）かもしれない。ダウンロードでの保存を案内する
+          const r = await UI.modal({
+            title: '保存先を選ぶ画面がすぐに閉じました',
+            body: '<p class="confirm-msg">このブラウザ（アプリの中に組み込まれたブラウザなど）では、保存先を選ぶ画面が使えないのかもしれません。<br>代わりに、ダウンロードフォルダに保存しますか？</p><p class="sub">上書きではなく、新しいファイルができます。ふつうの Chrome や Edge で開くと、保存先を選べます。</p>',
+            buttons: [{ label: 'しない', value: null }, { label: 'ダウンロードで保存する', kind: 'primary', value: 'dl' }],
+          });
+          if (r !== 'dl') return false;
+          this._log('ダウンロードで保存することを選びました');
+        } else {
+          if (!(e.name === 'SecurityError' || e.name === 'NotAllowedError')) throw e;
+          this._log('ファイルを作る画面が使えず、ダウンロードに切り替え：' + e.name + ' ' + (e.message || ''));
+        }
       }
       if (h) {
         this._log('保存先を選びました：' + h.name);
