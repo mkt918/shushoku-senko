@@ -635,7 +635,7 @@ const Store = {
     if (this.readOnly) return false;
     if (this.fileHandle) {
       try {
-        if (!await this._canWrite(this.fileHandle)) { UI.toast('このファイルへの書き込みが許可されませんでした。保存先を選び直してください', 'warn'); throw new Error('denied'); }
+        if (!await this._canWrite(this.fileHandle)) throw new Error('denied');
         const body = await this._payload();
         const w = await this.fileHandle.createWritable();
         await w.write(body);
@@ -646,7 +646,14 @@ const Store = {
       } catch (e) {
         if (e.name === 'AbortError') return false;
         console.warn('上書き保存に失敗', e);
-        if (e.message !== 'denied') UI.toast(`「${this.fileName}」に上書きできませんでした（${e.message || e.name}）。保存先を選び直してください`, 'warn');
+        // 消えてしまう通知ではなく、理由が読めるダイアログで知らせる
+        const why = e.message === 'denied' ? 'このファイルへの書き込みが許可されませんでした。' : `${e.name || ''} ${e.message || ''}`.trim();
+        const pick = await UI.modal({
+          title: '上書き保存できませんでした',
+          body: `<p class="confirm-msg">「${esc(this.fileName)}」に書き込めませんでした。<br>理由：${esc(why)}</p><p class="sub">別のアプリでそのファイルを開いている・OneDrive などが同期している最中・保存先が読み取り専用、のときに起きます。しばらくしてからもう一度保存するか、別の場所に保存してください。</p>`,
+          buttons: [{ label: '閉じる', value: null }, { label: '別の場所に保存する', kind: 'primary', value: 'as' }],
+        });
+        if (pick !== 'as') return false;
       }
     }
     return this.saveAs();
@@ -680,7 +687,7 @@ const Store = {
     return true;
   },
 
-  _saved() { this.dirty = false; this._writeAutosave(); this.emit(); },
+  _saved() { this.dirty = false; this.lastSavedAt = new Date(); this._writeAutosave(); this.emit(); },
   /** 自動バックアップ（設定でフォルダを決めてあれば、日時入りのコピーを書く。失敗しても保存は成功のまま） */
   _backup(body) {
     if (typeof Backup === 'undefined') return;

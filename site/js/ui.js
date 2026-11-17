@@ -69,7 +69,8 @@ const UI = {
     if (Store.readOnly) { Share._bar(); return; }     // 閲覧専用：最終更新の時刻を出す
     $('#fileName').textContent = Store.fileName || '（未保存の新規データ）';
     const st = $('#saveState');
-    st.textContent = Store.dirty ? '未保存の変更あり（Ctrl+S で保存）' : '保存済み';
+    const t = Store.lastSavedAt, stamp = t ? `　最終保存 ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` : '';
+    st.textContent = (Store.dirty ? '未保存の変更あり（Ctrl+S で保存）' : '保存済み') + stamp;
     $('.top').classList.toggle('is-dirty-bar', !!Store.dirty);
     st.className = 'save-state ' + (Store.dirty ? 'is-dirty' : 'is-clean');
   },
