@@ -82,11 +82,11 @@ const YE = {
       const ja = a ? a.jobSchool + a.jobOther + a.jobPublic : 0, ea = a ? a.univ + a.junior + a.senshu + a.college + a.eduOther : 0, ta = a ? ja + ea + a.other : 0;
       const c = k => `<td>${fmt(n[k], a && a[k])}</td>`;
       return `<table class="mt-tbl"><thead><tr><th colspan="3">就職者 (${zen(String(job))})</th><th colspan="5">進学者 (${zen(String(edu))})</th><th rowspan="2">その他</th><th rowspan="2">合計</th></tr>
-        <tr><th>学校斡旋</th><th>斡旋外</th><th>公務</th><th>大学</th><th>短期大学</th><th>専門学校</th><th>大学校・准看護</th><th>その他</th></tr></thead>
+        <tr><th>学校斡旋</th><th>斡旋外</th><th>公務員</th><th>大学</th><th>短期大学</th><th>専門学校</th><th>大学校・准看護</th><th>その他</th></tr></thead>
         <tbody><tr>${['jobSchool', 'jobOther', 'jobPublic', 'univ', 'junior', 'senshu', 'college', 'eduOther', 'other'].map(c).join('')}<td>${fmt(tot, ta)}</td></tr></tbody></table>`;
     };
     // 表3 学科別
-    const rows3 = [['就職', '学校斡旋', ['jobSchool']], ['就職', '斡旋外', ['jobOther']], ['就職', '公務', ['jobPublic']], ['進学', '大学', ['univ']], ['進学', '短期大学', ['junior']], ['進学', '専門学校', ['senshu']], ['進学', '大学校', ['college']], ['進学', '准看護', ['nurse']], ...(sm.all.eduOther ? [['進学', 'その他', ['eduOther']]] : []), ['その他', '', ['other']]];
+    const rows3 = [['就職', '学校斡旋', ['jobSchool']], ['就職', '斡旋外', ['jobOther']], ['就職', '公務員', ['jobPublic']], ['進学', '大学', ['univ']], ['進学', '短期大学', ['junior']], ['進学', '専門学校', ['senshu']], ['進学', '大学校', ['college']], ['進学', '准看護', ['nurse']], ...(sm.all.eduOther ? [['進学', 'その他', ['eduOther']]] : []), ['その他', '', ['other']]];
     const dv = (d, g, ks) => ks.reduce((t, k) => t + (((sm.byDept[d] || {})[g] || {})[k] || 0), 0);
     const av = (d, g, ks) => 0;
     const t3 = `<table class="mt-tbl"><thead><tr><th colspan="2">種 別</th>${depts.map(d => `<th colspan="2">${esc(d)}</th>`).join('')}<th rowspan="2">合計</th></tr><tr><th colspan="2"></th>${depts.map(() => '<th>男</th><th>女</th>').join('')}</tr></thead><tbody>

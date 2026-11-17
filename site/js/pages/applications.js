@@ -43,7 +43,7 @@ const AppsPage = {
           .map(([v, l]) => `<button class="${this.state.filter === v ? 'on' : ''}" data-filter="${v}">${l}</button>`).join('')}</div>
         <select id="apSort"><option value="no3">番号順</option><option value="exam" ${this.state.sort === 'exam' ? 'selected' : ''}>試験日順</option></select>
       </div>
-      ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="apTable">
+      ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps stick2" id="apTable">
         <thead><tr><th class="num">番号</th><th>氏名</th><th>何次</th><th>応募先</th><th>書類送付</th><th>試験日</th><th>時間</th><th>合否</th><th>結果日</th><th>報告書（3日以内）</th><th>メモ</th></tr></thead>
         <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
         : '<div class="empty"><p class="empty-title">該当する応募はありません</p><p>「選考会議（1次）」で応募先を確定すると、ここに並びます。</p></div>'}
@@ -117,7 +117,10 @@ const AppsPage = {
     const k = el.dataset.f;
     a[k] = el.type === 'checkbox' ? el.checked : el.value.trim();
     if (k === 'examTime') { a[k] = el.value = VisitsPage.hm(el.value); }
-    if (k === 'docsSent' && el.checked && !a.docsSentDate) a.docsSentDate = todayISO();
+    if (k === 'docsSent' && el.checked && !a.docsSentDate) {
+      a.docsSentDate = todayISO();
+      const d = el.closest('tr') && el.closest('tr').querySelector('[data-f="docsSentDate"]'); if (d) d.value = a.docsSentDate;   // 隣の日付欄にも出す
+    }
     if (k === 'docsSent') setTimeout(() => SendDocs.redraw(), 0);   // 上の送付カードの「未送付」を更新する
     if (k === 'result') {      // 合否を選ぶと結果日に今日が入る（わからなければそのままでよい。空欄でも内定として数える）
       if (a.result && !a.resultDate) a.resultDate = todayISO();
@@ -145,11 +148,12 @@ const AppsPage = {
       <input type="search" id="nxQ" class="w-full" placeholder="下4桁・事業所名・職種で検索"><div id="nxList" class="pick-list"></div>`;
     let chosen = null;
     const used = new Set(Apps.of(studentId).filter(a => a.confirmed).map(a => a.jobId));
+    const cnt = jobId => { const l = Store.data.applications.filter(a => a.jobId === jobId && a.confirmed); return { n: l.length, won: l.filter(a => a.result === '内定').length }; };
     const draw = () => {
       const q = toHalf($('#nxQ', body).value).trim().toLowerCase();
       const list = Store.data.jobs.filter(j => !q || [Derive.short(j), j.company, j.jobTitle].some(v => v && toHalf(v).toLowerCase().includes(q))).slice(0, 80);
       $('#nxList', body).innerHTML = list.map(j => `<button class="pick-item ${chosen === j.id ? 'on' : ''}" data-id="${j.id}">
-        <span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}</small></span>${used.has(j.id) ? '<span class="tag">応募済み</span>' : '<span></span>'}</button>`).join('') || '<p class="sub">見つかりません</p>';
+        <span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}　求人${Jobs.capacity(j)}人・応募${cnt(j.id).n}人${cnt(j.id).won ? '・内定' + cnt(j.id).won + '人' : ''}</small></span>${used.has(j.id) ? '<span class="tag">応募済み</span>' : '<span></span>'}</button>`).join('') || '<p class="sub">見つかりません</p>';
     };
     const res = await UI.modal({
       title: `${round}次の応募先`, body, wide: true,
@@ -177,8 +181,9 @@ const AppsPage = {
     if (!await UI.confirm(`${Students.label(s)} の進路を「${to}」に変更します。\n学校斡旋の就職選考（1次・2次）の一覧からは外れます。\n（応募の記録は消えません。変更の履歴は進路決定に残ります）`, { title: '進路を変更します', ok: `${to}に変更する` })) return;
     const was = Outcomes.of(s);
     if (s.dest && was.type) { s.destStash = s.destStash || {}; s.destStash[was.type] = JSON.parse(JSON.stringify(s.dest)); }
-    (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '就職', fromDesc: OutcomesPage.desc(was), to: kind === 'edu' ? '進学' : `就職（${to}）` });
+    (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '就職', fromDesc: OutcomesPage.desc(was), to: kind === 'edu' ? '進学' : kind === 'home' ? 'その他（家事手伝い）' : `就職（${to}）` });
     if (kind === 'edu') { s.course = '進学'; s.method = ''; s.dest = { type: '進学', status: '活動中' }; }
+    else if (kind === 'home') { s.course = '就職'; s.method = to; s.dest = { type: 'その他', status: '決定', note: '家事手伝い' }; }   // 進路指導まとめでは「その他」
     else { s.course = '就職'; s.method = to; s.dest = { type: '就職', status: '活動中', jobKind: '斡旋外' }; }
     if (s.second) s.second = Object.assign({}, s.second, { added: false });
     Store.changed(); UI.refresh();

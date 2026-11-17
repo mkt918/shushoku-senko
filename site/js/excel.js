@@ -908,6 +908,7 @@ const Importer = {
     const type = $('#impType', body).value;
     Jobs._batch = { impId: uid(), impAt: new Date().toLocaleString('sv-SE').slice(0, 16), impName: (file && file.name) || '' };   // 求人票の取り込みごとの目印（一括削除用）
     // 取り込む前の状態を残す（取り込んだあと「取り消す」で戻せる）
+    const dataRef = Store.data;
     const snap = clone({ jobs: Store.data.jobs, students: Store.data.students, applications: Store.data.applications, imports: Store.data.imports });
     const r = ImportTypes[type].apply(parsed.items);
     Jobs._batch = null;
@@ -915,6 +916,7 @@ const Importer = {
     if (file && typeof Watch !== 'undefined') Watch.mark(file, type);
     Store.changed();
     UI.toastAction(`取り込みました（追加 ${r.added} 件／更新 ${r.updated} 件）`, '取り消す', () => {
+      if (Store.data !== dataRef) { UI.toast('別のデータを開いたので、取り消せません', 'warn'); return; }
       Object.assign(Store.data, snap);
       Store.changed(); UI.refresh();
       UI.toast('取り込みを取り消しました');

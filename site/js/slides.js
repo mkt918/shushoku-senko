@@ -141,7 +141,7 @@ const Slides = {
       { t: 'stack', w: [6, 0.6], parts: [{ t: 'rows', items: this.rows(this.text('year')) }, { t: 'note', text: this.NOTES.year }] });
 
     // 4 就職の内訳
-    const jk = [{ l: '学校斡旋', v: n.jobSchool, c: P[0] }, { l: '斡旋外（自己開拓・縁故など）', v: n.jobOther, c: P[2] }, { l: '公務', v: n.jobPublic, c: P[4] }].filter(x => x.v);
+    const jk = [{ l: '学校斡旋', v: n.jobSchool, c: P[0] }, { l: '斡旋外（自己開拓・縁故など）', v: n.jobOther, c: P[2] }, { l: '公務員', v: n.jobPublic, c: P[4] }].filter(x => x.v);
     add('jobMix', `就職の内訳（${g.job}人）`,
       jk.length ? `${this.donut(jk, 'xl')}<p class="sl-note">学校斡旋：学校に届いた求人票で応募し、校内選考を経て受験する方法です。</p>` : this.empty('就職者がまだ入力されていません。'),
       jk.length ? { t: 'stack', w: [6, 0.6], parts: [{ t: 'donut', items: jk }, { t: 'note', text: '学校斡旋：学校に届いた求人票で応募し、校内選考を経て受験する方法です。' }] } : { t: 'note', text: '就職者がまだ入力されていません。' });

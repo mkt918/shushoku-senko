@@ -16,6 +16,14 @@ const esc = v => v == null ? '' : String(v).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const clone = o => JSON.parse(JSON.stringify(o));
+/** 「外したものだけ覚える」選択。あとから増えた項目は、はじめからチェックが入る（印刷もれを防ぐ） */
+class SelSet {
+  constructor() { this.off = new Set(); }
+  has(id) { return !this.off.has(id); }
+  add(id) { this.off.delete(id); }
+  delete(id) { this.off.add(id); }
+  clear() { this.off.clear(); }
+}
 
 /** 全角英数・記号を半角に */
 function toHalf(s) {
@@ -523,7 +531,16 @@ const Store = {
 
   defaultFileName() { return `就職選考データ_R${reiwa(this.data.year)}年度.json`; },
 
+  /** 別のデータを開いたとき、画面ごとに覚えている「元に戻す」「選択」などを捨てる（前のデータが混ざらないように） */
+  resetSession() {
+    if (typeof Jobs !== 'undefined') Jobs._undo = null;
+    if (typeof SendDocs !== 'undefined') SendDocs.state.sels = {};
+    if (typeof VisitsPage !== 'undefined') VisitsPage.state.sel = null;
+    if (typeof Selection !== 'undefined') Selection.unlocked.clear();
+  },
+
   replace(data, fileName = '', handle = null) {
+    this.resetSession();
     this.data = normalizeData(data);
     this.fileName = fileName;
     this.fileHandle = handle;

@@ -18,15 +18,18 @@ const UI = {
 
   go(id) { location.hash = '#/' + id; },
 
-  route() {
+  /** keep＝同じ画面の描き直し（スクロールの位置を保つ）。画面を移るときは先頭から */
+  route(keep = false) {
     const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1] || 'dashboard';
-    if (typeof Survey !== 'undefined') Survey.syncEmpty();   // 進路希望調査の回答を、生徒・成績の空欄に反映
+    if (typeof Survey !== 'undefined' && !Store.readOnly) Survey.syncEmpty();   // 進路希望調査の回答を、生徒・成績の空欄に反映（閲覧専用では書き換えない）
     const page = Pages.get(id) || Pages.get('dashboard');
+    const view0 = $('#view');
+    const pos = keep && this.current === page ? { y: window.scrollY, v: view0.scrollTop, w: $$('.table-wrap', view0).map(w => [w.scrollTop, w.scrollLeft]) } : null;
     this.current = page;
     $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.page === page.id));
     const view = $('#view');
     view.innerHTML = '';
-    view.scrollTop = 0;
+    if (!pos) { view.scrollTop = 0; window.scrollTo(0, 0); }
     document.title = `${page.title}｜就職選考 統合管理`;
     if (page.ready === false) {
       view.innerHTML = `
@@ -36,9 +39,14 @@ const UI = {
       return;
     }
     page.render(view);
+    if (pos) {
+      const ws = $$('.table-wrap', view);
+      pos.w.forEach(([t, l], i) => { if (ws[i]) { ws[i].scrollTop = t; ws[i].scrollLeft = l; } });
+      view.scrollTop = pos.v; window.scrollTo(0, pos.y);
+    }
   },
 
-  refresh() { if (this.current && this.current.ready !== false) this.route(); },
+  refresh() { if (this.current && this.current.ready !== false) this.route(true); },
 
   renderNav() {
     let html = '';
@@ -61,7 +69,8 @@ const UI = {
     if (Store.readOnly) { Share._bar(); return; }     // 閲覧専用：最終更新の時刻を出す
     $('#fileName').textContent = Store.fileName || '（未保存の新規データ）';
     const st = $('#saveState');
-    st.textContent = Store.dirty ? '未保存の変更あり' : '保存済み';
+    st.textContent = Store.dirty ? '未保存の変更あり（Ctrl+S で保存）' : '保存済み';
+    $('.top').classList.toggle('is-dirty-bar', !!Store.dirty);
     st.className = 'save-state ' + (Store.dirty ? 'is-dirty' : 'is-clean');
   },
 
@@ -75,7 +84,8 @@ const UI = {
   },
 
   /** モーダル。buttons: [{label, kind, value}] → Promise(value) */
-  modal({ title, body, buttons = [{ label: '閉じる', value: null }], wide = false, onOpen }) {
+  /** guard＝入力を変えたまま ×・Esc・キャンセルで閉じるとき、確認する */
+  modal({ title, body, buttons = [{ label: '閉じる', value: null }], wide = false, onOpen, guard = false }) {
     return new Promise(resolve => {
       const root = $('#modalRoot');
       const wrap = document.createElement('div');
@@ -90,18 +100,25 @@ const UI = {
       const bodyEl = $('.modal-body', wrap);
       if (typeof body === 'string') bodyEl.innerHTML = body; else if (body) bodyEl.appendChild(body);
       const close = v => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
-      const onKey = e => { if (e.key === 'Escape') close(null); };
+      const snap = () => guard ? $$('input,select,textarea', bodyEl).map(x => x.type === 'checkbox' || x.type === 'radio' ? x.checked : x.value).join('\u0001') : '';
+      let base = '';
+      const tryClose = async v => {
+        if (guard && v == null && snap() !== base && !await UI.confirm('入力した内容は保存されません。閉じますか？', { title: '入力を捨てますか', ok: '閉じる', danger: true })) return;
+        close(v);
+      };
+      const onKey = e => { if (e.key === 'Escape' && root.lastElementChild === wrap) tryClose(null); };   // 重なっているときは、いちばん上の1枚だけ閉じる
       document.addEventListener('keydown', onKey);
       wrap.addEventListener('click', async e => {
-        if (e.target.closest('[data-close]')) return close(null);
+        if (e.target.closest('[data-close]')) return tryClose(null);
         const btn = e.target.closest('[data-i]');
         if (!btn) return;
         const b = buttons[btn.dataset.i];
         if (b.onClick) { const r = await b.onClick(bodyEl); if (r === false) return; }
-        close(b.value);
+        tryClose(b.value);
       });
       root.appendChild(wrap);
       if (onOpen) onOpen(bodyEl);
+      base = snap();
       const first = $('input,select,textarea', bodyEl);
       if (first) first.focus();
     });

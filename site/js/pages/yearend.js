@@ -245,7 +245,7 @@ const YearendPage = {
     $$('[data-jobs]', el).forEach(i => i.addEventListener('change', () => { const v = num(i.value); if (v == null) delete H.jobs[i.dataset.jobs]; else H.jobs[i.dataset.jobs] = v; Store.changed(); }));
     const drawSum = () => {
       const y = +$('#hsYear', el).value; st.hy = y; const s = H.summary[y] || {};
-      const keys = [['jobSchool', '学校斡旋'], ['jobOther', '斡旋外'], ['jobPublic', '公務'], ['univ', '大学'], ['junior', '短期大学'], ['senshu', '専門学校'], ['college', '大学校・准看護'], ['eduOther', '進学その他'], ['other', 'その他']];
+      const keys = [['jobSchool', '学校斡旋'], ['jobOther', '斡旋外'], ['jobPublic', '公務員'], ['univ', '大学'], ['junior', '短期大学'], ['senshu', '専門学校'], ['college', '大学校・准看護'], ['eduOther', '進学その他'], ['other', 'その他']];
       $('#hsFields', el).innerHTML = keys.map(([k, l]) => `<label class="ds-f"><span>${l}</span><input type="number" data-sk="${k}" value="${s[k] ?? 0}" class="w-num" style="width:70px"></label>`).join('');
       $$('[data-sk]', el).forEach(i => i.addEventListener('change', () => { H.summary[y] = Object.assign({}, H.summary[y]); H.summary[y][i.dataset.sk] = num(i.value) || 0; Store.changed(); }));
     };

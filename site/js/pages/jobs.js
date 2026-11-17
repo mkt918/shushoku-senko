@@ -88,18 +88,31 @@ const Jobs = {
     return extra;
   },
 
+  /** 求人ごとの応募の人数（1次の希望＋2次以降の応募。確定・内定） */
+  appCounts() {
+    const m = new Map();
+    for (const a of Store.data.applications) {
+      const c = m.get(a.jobId) || { n: 0, conf: 0, won: 0 };
+      c.n++; if (a.confirmed) c.conf++; if (a.confirmed && a.result === '内定') c.won++;
+      m.set(a.jobId, c);
+    }
+    return m;
+  },
+
   row(j) {
     const s = Store.data.settings;
+    const ac = (this._ac || (this._ac = this.appCounts())).get(j.id);
     const ind = Derive.industry(j.industryCode);
     const size = Derive.sizeClass(j.employees);
     return {
       j, short: num(Derive.short(j)), company: j.company, jobTitle: j.jobTitle, workplace: j.workplace,
       openings: j.openings, zone: Derive.zone(j, s), office: Derive.office(j),
-      ind: ind ? ind.letter : '', indName: ind ? ind.name : '', size: size ? size.cls : null, kind: j.kind || '一般',
+      ind: ind ? ind.letter : '', indName: ind ? ind.name : '', size: size ? size.cls : null, kind: j.kind || '一般', ac: ac || null, apps: ac ? ac.n : 0,
     };
   },
 
   filtered() {
+    this._ac = null;
     const st = this.state;
     const q = toHalf(st.q).toLowerCase().trim();
     let rows = this.all().map(j => this.row(j));
@@ -180,7 +193,7 @@ const Jobs = {
     const st = this.state;
     const cols = [
       ['short', '下4桁', 'num'], ['company', '事業所名'], ['jobTitle', '職種'], ['workplace', '就業場所'],
-      ['openings', '求人数', 'num'], ['zone', '職安'], ['ind', '産業'], ['size', '規模', 'num'], ['kind', '区分'],
+      ['openings', '求人数', 'num'], ['apps', '応募・内定'], ['zone', '職安'], ['ind', '産業'], ['size', '規模', 'num'], ['kind', '区分'],
     ];
     if (!this.all().length) {
       el.innerHTML = `<div class="empty"><p class="empty-title">求人票はまだ登録されていません</p>
@@ -188,7 +201,8 @@ const Jobs = {
       return;
     }
     el.innerHTML = `
-      <p class="count">${rows.length} 件 ${rows.length !== this.all().length ? `／ 全 ${this.all().length} 件` : ''}${rows.length > this.SHOW ? `　<span class="sub">（先頭の ${this.SHOW} 件を表示。検索や絞り込みで探せます）</span>` : ''}</p>
+      ${rows.length > this.SHOW ? `<div class="notice notice-info">${rows.length} 件のうち、先頭の ${this.SHOW} 件だけを表示しています。上の検索や絞り込みで探してください。</div>` : ''}
+      <p class="count">${rows.length} 件 ${rows.length !== this.all().length ? `／ 全 ${this.all().length} 件` : ''}</p>
       <div class="table-wrap"><table class="tbl tbl-click">
         <thead><tr>${cols.map(([k, l, c]) => `<th class="${c || ''} sortable ${st.sort === k ? 'sorted-' + st.dir : ''}" data-sort="${k}">${l}</th>`).join('')}</tr></thead>
         <tbody>${rows.slice(0, this.SHOW).map(r => `<tr data-id="${r.j.id}">
@@ -197,6 +211,7 @@ const Jobs = {
           <td>${esc(r.jobTitle)}</td>
           <td>${esc(r.workplace)}${r.j.workArea === '県外' ? ' <span class="tag">県外</span>' : ''}</td>
           <td class="num">${esc(r.openings ?? '')}</td>
+          <td class="sm nowrap" title="希望・応募した人数／確定した人数／内定した人数">${r.ac ? `${r.ac.n}人${r.ac.conf ? `・確定${r.ac.conf}` : ''}${r.ac.won ? `・<b class="won">内定${r.ac.won}</b>` : ''}` : '<span class="sub">—</span>'}</td>
           <td>${r.zone ? `<span class="tag tag-${r.zone === '管内' ? 'accent' : 'plain'}">${r.zone}</span>` : ''} <span class="sub">${esc(r.office)}</span></td>
           <td title="${esc(r.indName)}">${esc(r.ind)}</td>
           <td class="num">${esc(r.size ?? '')}</td>
@@ -323,14 +338,16 @@ const Jobs = {
     buttons.push({ label: '保存', kind: 'primary', value: 'save', onClick: root => { const v = validate(root); if (!v) return false; commit(v); } });
 
     const res = await UI.modal({
-      title: existing ? '求人票の編集' : '求人票の登録', body, wide: true, buttons,
+      title: existing ? '求人票の編集' : '求人票の登録', body, wide: true, buttons, guard: true,
       onOpen: root => this.updateDerived(root),
     });
     if (res) UI.refresh();
 
     if (res === 'delete') {
-      const used = Store.data.applications.filter(a => a.jobId === existing.id).length;
-      const ok = await UI.confirm(`「${existing.company}　${existing.jobTitle || ''}」を削除します。${used ? `\nこの求人は ${used} 件の応募・希望で使われています。応募・希望も一緒に削除します（職場見学・合否などの記録も消えます）。` : ''}`, { ok: '削除する', danger: true });
+      const linked = Store.data.applications.filter(a => a.jobId === existing.id);
+      const used = linked.length;
+      const names = [...new Set(linked.map(a => { const st = Students.byId(a.studentId); return st ? (st.name || st.no3) : ''; }).filter(Boolean))];
+      const ok = await UI.confirm(`「${existing.company}　${existing.jobTitle || ''}」を削除します。${used ? `\nこの求人は ${used} 件の応募・希望で使われています（${names.slice(0, 6).join('、')}${names.length > 6 ? ' ほか' + (names.length - 6) + '人' : ''}）。応募・希望も一緒に削除します（職場見学・合否などの記録も消えます）。` : ''}`, { ok: '削除する', danger: true });
       if (ok) {
         Store.data.jobs = Store.data.jobs.filter(j => j.id !== existing.id);
         Store.data.applications = Store.data.applications.filter(a => a.jobId !== existing.id);

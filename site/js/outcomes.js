@@ -21,13 +21,17 @@ const OC = {
 };
 
 const Outcomes = {
-  jobKindFromMethod(m) { return m === '自己開拓' || m === '縁故' || m === '家事手伝い' ? '斡旋外' : m === '公務員' ? '公務' : '学校斡旋'; },
+  jobKindFromMethod(m) { return m === '自己開拓' || m === '縁故' ? '斡旋外' : m === '公務員' ? '公務' : '学校斡旋'; },
 
   /** 生徒の進路先（入力した内容＋内定からの自動）。status：決定／活動中 */
   of(s) {
     const d = Object.assign({ type: '', status: '' }, s.dest || {});
     const a = Apps.current(s.id);
     const job = a && a.result === '内定' ? Apps.job(a) : null;
+    // 家事手伝いは、進路指導まとめでは「その他」に数える（統計調査の就職には入らない）
+    if (s.method === '家事手伝い' && (!d.type || (d.type === '就職' && d.jobKind === '斡旋外' && !d.company))) {
+      d.type = 'その他'; d.note = d.note || '家事手伝い'; d.status = '決定'; d.auto = !s.dest;
+    }
     if (!d.type) {
       if (job) { d.type = '就職'; d.jobKind = '学校斡旋'; d.status = '決定'; d.auto = true; }
       else if (s.course === '就職') { d.type = '就職'; d.jobKind = this.jobKindFromMethod(s.method); d.status = '活動中'; d.auto = true; }

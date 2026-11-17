@@ -44,12 +44,19 @@ Pages.register({
           <tr><th>男</th><th>女</th><th>計</th><th>男</th><th>女</th><th>計</th></tr></thead>
         <tbody>${depts.map(dp => line(dp, st.rows.filter(r => r.dept === dp))).join('')}</tbody>
         <tfoot>${line('合計', st.rows)}</tfoot></table></div>
-      <div class="dash-todo">
-        ${st.unsent ? `<a href="#/applications" class="tag tag-warn">応募書類が未送付 ${st.unsent} 人</a>` : ''}
-        ${st.noReport ? `<a href="#/applications" class="tag tag-warn">受験報告書が未提出 ${st.noReport} 人（試験日を過ぎた人）</a>` : ''}
-        ${st.soon.length ? `<span class="sub">7日以内の試験：${st.soon.map(r => `${esc(r.a.examDate.slice(5).replace('-', '/'))} ${esc(r.s.name || r.s.no3)}（${esc((Apps.job(r.a) || {}).company || '')}）`).join('、')}</span>` : ''}
-      </div>
     </section>`;
+  },
+  /** いま必要な作業（上に出す）。件数があるものだけ */
+  todoHtml(st) {
+    const items = [
+      st.none ? `<a href="#/selection" class="tag tag-warn">応募先が未確定 ${st.none} 人 → 選考会議（1次）</a>` : '',
+      st.next ? `<a href="#/second" class="tag tag-warn">次の応募先が必要 ${st.next} 人 → 選考会議（2次）</a>` : '',
+      st.unsent ? `<a href="#/applications" class="tag tag-warn">応募書類が未送付 ${st.unsent} 人 → 応募・受験</a>` : '',
+      st.noReport ? `<a href="#/applications" class="tag tag-warn">受験報告書が未提出 ${st.noReport} 人（試験日を過ぎた人）</a>` : '',
+    ].filter(Boolean);
+    const soon = st.soon.length ? `<span class="sub">7日以内の試験：${st.soon.map(r => `${esc(r.a.examDate.slice(5).replace('-', '/'))} ${esc(r.s.name || r.s.no3)}（${esc((Apps.job(r.a) || {}).company || '')}）`).join('、')}</span>` : '';
+    if (!items.length && !soon) return '';
+    return `<section class="card card-todo"><div class="card-head"><h2>いま必要な作業</h2></div><div class="dash-todo">${items.join('')}${soon}</div></section>`;
   },
 
   render(view) {
@@ -78,10 +85,11 @@ Pages.register({
       <div class="stats">
         <a class="stat" href="#/jobs"><span class="stat-label">求人票</span><span class="stat-val">${d.jobs.length}</span><span class="stat-unit">件</span></a>
         <a class="stat" href="#/students"><span class="stat-label">生徒（就職希望）</span><span class="stat-val">${wantJob}</span><span class="stat-unit">／ ${students} 人</span></a>
-        <a class="stat" href="#/selection"><span class="stat-label">応募先の確定</span><span class="stat-val">${d.applications.filter(a => a.confirmed).length}</span><span class="stat-unit">件</span></a>
-        <a class="stat" href="#/applications"><span class="stat-label">内定</span><span class="stat-val">${decided}</span><span class="stat-unit">人</span></a>
+        <a class="stat" href="#/selection"><span class="stat-label">応募先が確定</span><span class="stat-val">${Apps.currents().length}</span><span class="stat-unit">人</span></a>
+        <a class="stat" href="#/applications"><span class="stat-label">内定（学校斡旋）</span><span class="stat-val">${st.won}</span><span class="stat-unit">人</span></a>
       </div>
 
+      ${st.seekers ? this.todoHtml(st) : ''}
       ${st.seekers ? this.statusHtml(st) : ''}
 
       <section class="card">

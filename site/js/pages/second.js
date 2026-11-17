@@ -22,7 +22,8 @@ const SecondPage = {
       const list = Apps.of(s.id).filter(a => a.confirmed);
       const cur = Apps.current(s.id);
       // 進路を変えて就職に加わった生徒は、1次に出せないので、最初から2次の対象にする
-      const failed = list.some(a => a.result === '不採用' || a.result === '辞退') || Students.lateEntrant(s) || added;
+      const removed = !!(s.second && s.second.removed) && !list.length;      // 「外す」を押した（応募がまだない）
+      const failed = !removed && (list.some(a => a.result === '不採用' || a.result === '辞退') || Students.lateEntrant(s) || added);
       const wait = !cur || cur.result === '不採用' || cur.result === '辞退';
       return { s, cur, failed, wait, r: rk.get(s.id) };
     }).filter(x => x.failed)
@@ -65,7 +66,7 @@ const SecondPage = {
     $('#scAdd', view).addEventListener('click', () => this.addStudent());
     $$('[data-unadd]', view).forEach(b => b.addEventListener('click', () => {
       const st = Students.byId(b.dataset.unadd); if (!st) return;
-      st.second = Object.assign({}, st.second, { added: false }); Store.changed(); UI.refresh(); UI.toast('2次の一覧から外しました');
+      st.second = Object.assign({}, st.second, { added: false, removed: true }); Store.changed(); UI.refresh(); UI.toast('2次の一覧から外しました（［生徒を追加］でまた加えられます）');
     }));
     $$('[data-next]', view).forEach(b => b.addEventListener('click', () => AppsPage.addNext(b.dataset.next)));
     if ($('#sendCard', view)) SendDocs.bind($('#sendCard', view));
@@ -139,7 +140,7 @@ const SecondPage = {
       s.course = '就職'; s.method = '学校斡旋';
       s.dest = { type: '就職', status: '活動中', jobKind: '学校斡旋' };
     }
-    s.second = Object.assign({}, s.second, { added: true });
+    s.second = Object.assign({}, s.second, { added: true, removed: false });
     Store.changed(); UI.refresh();
     UI.toast(`${s.name || s.no3} を2次の一覧に追加しました`);
   },
@@ -192,7 +193,7 @@ const SecondPage = {
   },
 
   rowHtml({ s, cur, wait, r }) {
-    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}${s.second && s.second.added && !cur ? ` <button class="link-btn" data-unadd="${s.id}" title="2次の一覧から外す（応募はまだありません）">外す</button>` : ''}</td><td class="sm">${this.histCell(s, wait)}</td>`;
+    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}${s.second && (s.second.added || Students.lateEntrant(s)) && !cur ? ` <button class="link-btn" data-unadd="${s.id}" title="2次の一覧から外す（応募はまだありません）">外す</button>` : ''}</td><td class="sm">${this.histCell(s, wait)}</td>`;
     if (wait) {
       const nr = cur ? cur.round + 1 : 2;
       return `<tr class="res-none">${head}<td class="c">${nr}</td>

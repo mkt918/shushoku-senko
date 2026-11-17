@@ -810,3 +810,20 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .dest-sum { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 
 .dest-own { width: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+
+/* 未保存のとき、上の帯の色を変える */
+.top.is-dirty-bar { background: var(--warn-soft); border-bottom-color: #eed9ae; }
+.top.is-dirty-bar .save-state { font-weight: 700; }
+
+/* 表の左の2列（番号・氏名など）を、横にスクロールしても固定する */
+.stick2 th:nth-child(-n+2), .stick2 td:nth-child(-n+2) { position: sticky; z-index: 1; background: var(--surface); }
+.stick2 thead th:nth-child(-n+2) { z-index: 3; background: var(--surface-2); }
+.stick2 th:nth-child(1), .stick2 td:nth-child(1) { left: 0; min-width: 64px; }
+.stick2 th:nth-child(2), .stick2 td:nth-child(2) { left: 64px; min-width: 96px; box-shadow: 2px 0 0 var(--line); }
+.stick2 tr.res-内定 td:nth-child(-n+2) { background: var(--ok-soft); }
+.stick2 tr.res-不採用 td:nth-child(-n+2), .stick2 tr.res-辞退 td:nth-child(-n+2) { background: var(--surface-2); }
+.stick2 tbody tr:hover td:nth-child(-n+2) { background: var(--surface-2); }
+
+.won { color: var(--ok); }
+.dest-flow { font-size: 13px; }
+.card-todo { border-left: 4px solid var(--warn, #c98a00); }

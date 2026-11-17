@@ -6,7 +6,8 @@
 const VisitsPage = {
   state: { tab: 'plan', onlyOpen: true, sel: null, letter: 'both', start: 1, seatRows: 10, seatBlocks: 4, seatFront: 'top', seatJob: false, groupN: 4 },
 
-  groups() { return Docs.jobGroups(a => a.confirmed && (!this.state.onlyOpen || !a.visitDone)); },
+  /** 見学の対象＝確定した応募のうち、不採用・辞退になったもの（前の応募）は除く */
+  groups() { return Docs.jobGroups(a => a.confirmed && a.result !== '不採用' && a.result !== '辞退' && (!this.state.onlyOpen || !a.visitDone)); },
 
   render(view) {
     const st = this.state;
@@ -19,7 +20,7 @@ const VisitsPage = {
       <div class="tabs">${tabs.map(([k, l]) => `<button class="${st.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
       <div id="vBody"></div>`;
     $$('[data-tab]', view).forEach(b => b.addEventListener('click', () => { st.tab = b.dataset.tab; UI.refresh(); }));
-    $('#vOnlyOpen', view).addEventListener('change', e => { st.onlyOpen = e.target.checked; st.sel = null; UI.refresh(); });
+    $('#vOnlyOpen', view).addEventListener('change', e => { st.onlyOpen = e.target.checked; UI.refresh(); });
     if (!Apps.currents().length && st.tab !== 'guide') {
       $('#vBody', view).innerHTML = `<div class="empty"><p class="empty-title">確定した応募先がありません</p><p>「選考会議（1次）」で応募先を確定すると、ここに求人ごとに並びます。</p></div>`;
       return;
@@ -30,7 +31,7 @@ const VisitsPage = {
   /* 選択リスト（依頼文・ラベル用） */
   selectable(groups) {
     const st = this.state;
-    if (!st.sel) st.sel = new Set(groups.map(g => g.job.id));
+    if (!st.sel) st.sel = new SelSet();
     return `<div class="table-wrap"><table class="tbl" id="vSel"><thead><tr><th><input type="checkbox" id="vAll" ${groups.length && groups.every(g => st.sel.has(g.job.id)) ? 'checked' : ''}></th>
       <th class="num">下4桁</th><th>事業所</th><th>職種</th><th>見学者</th><th>見学日</th><th>宛先</th></tr></thead>
       <tbody>${groups.map(g => { const dest = Derive.sendTo(g.job); const dates = [...new Set(g.apps.map(x => x.a.visitDate).filter(Boolean))]; return `<tr>
@@ -41,8 +42,13 @@ const VisitsPage = {
   },
   bindSelectable(root, groups) {
     const st = this.state;
-    $('#vAll', root).addEventListener('change', e => { groups.forEach(g => e.target.checked ? st.sel.add(g.job.id) : st.sel.delete(g.job.id)); $$('[data-job]', root).forEach(c => { c.checked = e.target.checked; }); });
-    $('#vSel', root).addEventListener('change', e => { const j = e.target.dataset.job; if (j) e.target.checked ? st.sel.add(j) : st.sel.delete(j); });
+    const upd = () => {       // 印刷ボタンに、選んだ会社の数を出す
+      const n = groups.filter(g => st.sel.has(g.job.id)).length;
+      $$('#lPrint, #bPrint', root).forEach(b => { b.dataset.base = b.dataset.base || b.textContent; b.textContent = n ? `${b.dataset.base}（${n}社）` : b.dataset.base; b.disabled = !n; });
+    };
+    upd();
+    $('#vAll', root).addEventListener('change', e => { groups.forEach(g => e.target.checked ? st.sel.add(g.job.id) : st.sel.delete(g.job.id)); $$('[data-job]', root).forEach(c => { c.checked = e.target.checked; }); upd(); });
+    $('#vSel', root).addEventListener('change', e => { const j = e.target.dataset.job; if (j) e.target.checked ? st.sel.add(j) : st.sel.delete(j); upd(); });
   },
   picked(groups) { return groups.filter(g => this.state.sel.has(g.job.id)); },
 

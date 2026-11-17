@@ -87,7 +87,7 @@ const StudentsPage = {
       ['disc', '謹慎'], ['club', '部活'], ['cap', '部長'], ['council', '生徒会', 'num'], ['mogi', '模試', 'num'], ['final', '最終P', 'num'], ['warn', '']];
     el.innerHTML = `
       <p class="count">${rows.length} 人 ${rows.length !== Store.data.students.length ? `／ 全 ${Store.data.students.length} 人` : ''}</p>
-      <div class="table-wrap"><table class="tbl tbl-click">
+      <div class="table-wrap"><table class="tbl tbl-click stick2">
       <thead><tr>${cols.map(([k, l, c]) => `<th class="${c || ''} ${['disc', 'club', 'cap', 'warn', 'gender'].includes(k) ? '' : 'sortable'} ${st.sort === k ? 'sorted-' + st.dir : ''}" data-sort="${k}">${l}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(r => {
         const s = r.s;
@@ -278,12 +278,13 @@ const StudentsPage = {
       <div>${d.type ? `<b>${esc(d.type)}</b> <span class="tag ${d.status === '決定' ? 'tag-accent' : 'tag-warn'}">${esc(d.status)}</span>${d.auto ? ' <span class="sub">（内定した求人から自動）</span>' : ''}` : '<span class="tag tag-warn">未入力</span>'}
         ${desc ? `　<span>${esc(desc)}</span>` : ''}</div>
       ${log ? `<p class="sub">変更履歴：${log}</p>` : ''}
+      <div class="dest-flow"><span class="sub">応募の流れ</span> ${AppsPage.history(s.id) || '<span class="sub">確定した応募はまだありません</span>'}</div>
       <button type="button" class="btn btn-sm" data-destedit>進路先を入力・変更する</button>
       <span class="sub">（区分を変えると、②の進路・受験方法もそろいます）</span></div>${this.ownHtml(s, d)}`;
   },
 
   /** 学校斡旋でない就職（自己開拓・縁故・公務員など）：求人票と結びつかないので、一部の項目をここで直接入力する */
-  isOwn(s) { return s.course === '就職' && !!s.method && s.method !== '学校斡旋'; },
+  isOwn(s) { return s.course === '就職' && !!s.method && s.method !== '学校斡旋' && s.method !== '家事手伝い'; },
   ownHtml(s, d) {
     if (!this.isOwn(s)) return '';
     const cur = d.type === '就職' ? d : {};
@@ -365,10 +366,11 @@ const StudentsPage = {
     }
     buttons.push({ label: 'キャンセル', value: null });
     buttons.push({ label: '保存', kind: 'primary', value: 'save', onClick: save });
-    const res = await UI.modal({ title: existing ? `生徒の編集　${Students.label(existing)}` : '生徒の追加', body, wide: 'xl', buttons, onOpen: r => this.showPoints(r) });
+    const res = await UI.modal({ title: existing ? `生徒の編集　${Students.label(existing)}` : '生徒の追加', body, wide: 'xl', buttons, guard: true, onOpen: r => this.showPoints(r) });
     if (res === 'delete') {
       const apps = Apps.of(existing.id).length;
-      if (await UI.confirm(`${Students.label(existing)} を削除します。${apps ? `\n希望・応募の記録 ${apps} 件も削除されます。` : ''}`, { ok: '削除', danger: true })) {
+      const cos = [...new Set(Apps.of(existing.id).map(a => (Apps.job(a) || {}).company).filter(Boolean))];
+      if (await UI.confirm(`${Students.label(existing)} を削除します。${apps ? `\n希望・応募の記録 ${apps} 件も削除されます（${cos.slice(0, 5).join('、')}${cos.length > 5 ? ' ほか' : ''}）。` : ''}`, { ok: '削除', danger: true })) {
         Store.data.students = Store.data.students.filter(x => x !== existing);
         Store.data.applications = Store.data.applications.filter(a => a.studentId !== existing.id);
         Store.changed();

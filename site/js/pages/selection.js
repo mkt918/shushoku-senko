@@ -97,11 +97,7 @@ const Selection = {
         </div>
       </div>
       ${seekers.length ? `
-      <div class="stats stats-sm">
-        <div class="stat"><span class="stat-label">就職希望者（学校斡旋）</span><span class="stat-val">${seekers.length}</span><span class="stat-unit">人</span></div>
-        <div class="stat"><span class="stat-label">確定済み</span><span class="stat-val">${confirmed}</span><span class="stat-unit">人</span></div>
-        <div class="stat"><span class="stat-label">未確定</span><span class="stat-val">${seekers.length - confirmed}</span><span class="stat-unit">人</span></div>
-      </div>
+      <div class="stats stats-sm" id="selStats">${this.statsHtml(seekers)}</div>
       <div class="toolbar">
         <div class="seg">
           <button class="${this.state.show === 'all' ? 'on' : ''}" data-show="all">全員</button>
@@ -112,7 +108,7 @@ const Selection = {
         </details>
         <span class="sub">見出しを押すと並び替えます（初めは就職順位の昇順）</span>
       </div>
-      <div class="table-wrap"><table class="tbl tbl-sel ${this.viewClass()}" id="selTable">
+      <div class="table-wrap"><table class="tbl tbl-sel stick2 ${this.viewClass()}" id="selTable">
         <thead><tr>${[['rank', '順位', 'num c-rank'], ['no3', '番号・氏名', 'c-name'], ['gender', '性別', 'c c-gender'], ['final', '最終P', 'num c-final'], ['life', '生活', 'num c-life'], ['special', '特活', 'num c-special'], ['mogi', '模試', 'num c-mogi']]
           .map(([k, l, c]) => `<th class="${c} sortable ${this.state.sort === k ? 'sorted-' + this.state.dir : ''}" data-sort="${k}">${l}</th>`).join('')}
         ${Array.from({ length: PREF_N }, (_, i) => `<th>第${i + 1}希望</th>`).join('')}</tr></thead>
@@ -141,7 +137,7 @@ const Selection = {
     }));
     $$('input[data-view]', view).forEach(cb => cb.addEventListener('change', () => {
       this.setView(cb.dataset.view, cb.checked);
-      $('#selTable', view).className = 'tbl tbl-sel ' + this.viewClass();
+      $('#selTable', view).className = 'tbl tbl-sel stick2 ' + this.viewClass();
     }));
     if (this.state.optsOpen) $('#selOpts', view).open = true;
     $('#selOpts', view).addEventListener('toggle', e => { this.state.optsOpen = e.target.open; });
@@ -151,8 +147,16 @@ const Selection = {
     $('#selXlsx', view).addEventListener('click', () => this.excel());
   },
 
+  statsHtml(seekers) {
+    const confirmed = seekers.filter(r => Object.values(Apps.prefs(r.s.id)).some(a => a.confirmed)).length;
+    return `<div class="stat"><span class="stat-label">就職希望者（学校斡旋）</span><span class="stat-val">${seekers.length}</span><span class="stat-unit">人</span></div>
+        <div class="stat"><span class="stat-label">確定済み</span><span class="stat-val">${confirmed}</span><span class="stat-unit">人</span></div>
+        <div class="stat"><span class="stat-label">未確定</span><span class="stat-val">${seekers.length - confirmed}</span><span class="stat-unit">人</span></div>`;
+  },
+
   /** 受験先の一覧（出席番号順）。送付先を、その場で直せる */
   drawList(el) {
+    if (!el) return;
     const rows = Apps.currents().filter(x => Jobs.byId(x.a.jobId)).sort((x, y) => num(x.s.no3) - num(y.s.no3));
     if (!rows.length) { el.innerHTML = '<p class="sub">確定した生徒がまだいません。</p>'; return; }
     const f = (j, k, ph, cls) => `<input data-job="${j.id}" data-k="${k}" value="${esc(j[k] || '')}" placeholder="${esc(ph || '')}" class="${cls}" autocomplete="off">`;
@@ -162,6 +166,8 @@ const Selection = {
         <td class="sm"><span class="mono">${esc(Derive.short(j))}</span> <b>${esc(j.company)}</b><br><span class="sub">${esc(j.jobTitle || '')}</span></td>
         <td>${f(j, 'sendZip', j.zip, 'w-zip')}</td><td>${f(j, 'sendAddress', j.address, 'w-addr')}</td><td>${f(j, 'sendDept', j.dept, 'w-s')}</td><td>${f(j, 'sendContact', j.contact, 'w-s')}</td>
         <td><button class="btn btn-sm" data-editjob="${j.id}">求人票を開く</button></td></tr>`; }).join('')}</tbody></table></div>`;
+    if (el._bound) return;       // 描き直しのたびに付けると、操作が二重になる
+    el._bound = true;
     el.addEventListener('change', e => {
       const t = e.target; if (!t.dataset.job) return;
       const j = Jobs.byId(t.dataset.job); if (!j) return;
@@ -202,7 +208,7 @@ const Selection = {
       const taken = !!x && heldAhead >= x.cap;                      // 上位が押さえていて枠が埋まっている
       const takenConf = !!x && ahead >= x.cap;                      // うち、確定済みで埋まっている
       const over = !!(a && a.confirmed && x && (ahead + tie >= x.cap));   // 自分が確定すると枠を超える
-      const who = others.map(e => `<span class="who ${e.a.confirmed ? 'who-conf' : ''}" title="${e.a.confirmed ? '確定' : '希望'}（第${e.a.pref}希望）">${e.rank === Infinity ? '–' : e.rank}位 ${esc(e.s.name || e.s.no3)}${e.a.confirmed ? '◎' : ''}</span>`).join('');
+      const who = others.map(e => `<span class="who ${e.a.confirmed ? 'who-conf' : ''}" title="${e.a.confirmed ? '確定' : '希望'}（第${e.a.pref}希望）">${e.rank < 1e6 ? e.rank + '位' : '順位なし'} ${esc(e.s.name || e.s.no3)}${e.a.confirmed ? '◎' : ''}</span>`).join('');
       return `<td class="slot ${a && a.confirmed ? 'is-conf' : ''} ${taken ? 'is-taken' : ''} ${over ? 'is-over' : ''}">
         <div class="slot-in">
           <input class="slot-no ${locked ? 'is-locked' : ''}" data-sid="${s.id}" data-pref="${p}" value="${esc(job ? Derive.short(job) : '')}" placeholder="${esc(job && !Derive.short(job) ? job.kind : '')}" inputmode="numeric" aria-label="第${p}希望の下4桁" ${locked ? 'readonly title="確定済みのため変更できません（🔒を押すと変更できます）"' : ''}>
@@ -235,6 +241,8 @@ const Selection = {
       const keep = ae && ae.classList && ae.classList.contains('slot-no') ? [ae.dataset.sid, ae.dataset.pref] : null;
       tbody.innerHTML = this.sortedSeekers().map(r => this.rowHtml(r)).join('');
       this.drawJobs($('#selJobs'));
+      const sb = $('#selStats'); if (sb) sb.innerHTML = this.statsHtml(this.seekers());
+      this.drawList($('#selList'));
       this.applyFilter(document);
       if (keep) {
         const el = $(`.slot-no[data-sid="${keep[0]}"][data-pref="${keep[1]}"]`, tbody);
@@ -301,7 +309,7 @@ const Selection = {
       const q = toHalf($('#pkQ', body).value).trim().toLowerCase();
       const list = Store.data.jobs.filter(j => !q || [Derive.short(j), j.company, j.jobTitle, j.kana].some(v => v && toHalf(v).toLowerCase().includes(q))).slice(0, 80);
       $('#pkList', body).innerHTML = list.length ? list.map(j => `<button class="pick-item" data-id="${j.id}">
-        <span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}</small></span>${j.kind !== '一般' ? `<span class="tag tag-warn">${esc(j.kind)}</span>` : '<span></span>'}</button>`).join('')
+        <span class="mono">${esc(Derive.short(j) || '—')}</span><span class="pk-main"><b>${esc(j.company)}</b><small>${esc(j.jobTitle || '')}　求人${Jobs.capacity(j)}人</small></span>${j.kind !== '一般' ? `<span class="tag tag-warn">${esc(j.kind)}</span>` : '<span></span>'}</button>`).join('')
         : '<p class="sub">見つかりません。事前選考・指名求人は「求人票」で区分を選んで登録してください。</p>';
     };
     const p = UI.modal({
@@ -361,7 +369,7 @@ const Selection = {
       title: `${job.company}　${job.jobTitle || ''}（求人 ${Jobs.capacity(job)} 人）`, wide: true,
       body: `<table class="tbl"><thead><tr><th class="num">順位</th><th>番号・氏名</th><th class="c">性別</th><th class="num">最終P</th><th class="num">生活</th><th class="num">特活</th><th class="num">模試</th><th>希望順</th><th>確定</th></tr></thead>
         <tbody>${list.map(({ a, r }) => `<tr><td class="num">${r.jobRank ?? ''}${r.jobRankTie ? ' <span class="tag tag-info">同順位</span>' : ''}</td>
-          <td>${esc(r.s.no3)} ${esc(r.s.name)}</td><td class="num">${r.p.final}</td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${r.s.mogi ?? ''}</td>
+          <td>${esc(r.s.no3)} ${esc(r.s.name)}</td><td class="c">${esc(r.s.gender)}</td><td class="num">${r.p.final ?? ''}</td><td class="num">${r.p.life}</td><td class="num">${r.p.special}</td><td class="num">${r.s.mogi ?? ''}</td>
           <td>第${a.pref}希望</td><td>${a.confirmed ? '<b>確定</b>' : (Apps.current(r.s.id) ? '<span class="sub">他で確定</span>' : '')}</td></tr>`).join('')}</tbody></table>`,
     });
   },

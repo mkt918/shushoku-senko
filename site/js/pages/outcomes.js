@@ -148,7 +148,7 @@ const OutcomesPage = {
     const buttons = [];
     if (s.dest) buttons.push({ label: '入力を消して自動に戻す', kind: 'danger-ghost', value: 'clear' });
     buttons.push({ label: 'キャンセル', value: null }, { label: '保存', kind: 'primary', value: 'save' });
-    const res = await UI.modal({ title: '進路先の入力', body, buttons, wide: true, onOpen: upd });
+    const res = await UI.modal({ title: '進路先の入力', body, buttons, wide: true, guard: true, onOpen: upd });
     if (res === 'save') {
       const v = {}; $$('[data-k]', body).forEach(e => { v[e.dataset.k] = e.value.trim(); });
       const changed = !!v.type && v.type !== cur.type;
