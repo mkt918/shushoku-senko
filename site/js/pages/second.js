@@ -11,12 +11,12 @@ const SECOND_SHORT = { meet: '選考会議', form: '確認書', addrTel: '住所
 const SecondPage = {
   state: { filter: '' },
 
-  /** 会議の確認リスト：2×2のボタン。押すたびに 空白→〇→済 と変わる */
-  chkCell(s) {
-    return `<td><div class="chk-grid">${SECOND_CHECKS.map(([k, l]) => {
+  /** 会議の確認リスト：横に4つ並べたボタン。押すたびに 空白→〇→済 と変わる */
+  chkChips(s) {
+    return `<div class="chk-row">${SECOND_CHECKS.map(([k, l]) => {
       const v = (s.second || {})[k] || '';
       return `<button type="button" class="chk-chip ${v === '済' ? 'is-done' : v ? 'is-on' : ''}" data-chk="${k}" data-sid="${s.id}" title="${l}（押すと 空白→〇→済 と変わります）"><span>${SECOND_SHORT[k]}</span><b>${esc(v)}</b></button>`;
-    }).join('')}</div></td>`;
+    }).join('')}</div>`;
   },
 
   /** 1度でも不採用・辞退になった就職希望者（就職順位つき） */
@@ -60,9 +60,7 @@ const SecondPage = {
         <div class="seg">${[['', 'すべて'], ['未定', '応募先が未確定'], ['待', '結果待ち'], ['内定', '内定']]
           .map(([v, l]) => `<button class="${f === v ? 'on' : ''}" data-filter="${v}">${l}</button>`).join('')}</div>
       </div>
-      ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="scTable">
-        <thead><tr><th class="num" title="就職順位">順位</th><th class="num">番号</th><th>氏名</th><th>前の応募（合否を直せます）</th><th>応募先</th><th>試験日・時間</th><th>合否・結果日</th><th class="chk-th2">確認（押すと 空白→〇→済）</th><th>メモ</th></tr></thead>
-        <tbody>${rows.map(x => this.rowHtml(x)).join('')}</tbody></table></div>`
+      ${rows.length ? `<div class="sc-list" id="scTable">${rows.map(x => this.rowHtml(x)).join('')}</div>`
         : `<div class="empty"><p class="empty-title">${all.length ? '該当する生徒はいません' : '2次の対象者はまだいません'}</p><p>「応募・受験」で合否を「不採用」または「辞退」にすると、ここに並びます。</p></div>`}
       ${Store.data.applications.some(a => a.confirmed && a.round >= 2) ? `<details class="card-fold" ${this.state.sendOpen ? 'open' : ''} id="scSend"><summary>応募書類の送付（2次以降の応募先の送付状・宛名ラベル）</summary>${(SendDocs.state.minRound = 2, SendDocs.html())}</details>` : ''}
 `;
@@ -182,20 +180,29 @@ const SecondPage = {
     }).join('');
   },
 
+  /** 生徒ごとのカード（左の色の帯：緑＝内定／青＝結果待ち／橙＝応募先が未確定） */
   rowHtml({ s, cur, wait, r }) {
-    const head = `<td class="num">${r?.jobRank ?? ''}</td><td class="num mono">${esc(s.no3)}</td><td>${esc(s.name)}${s.second && (s.second.added || Students.lateEntrant(s)) && !cur ? ` <button class="link-btn" data-unadd="${s.id}" title="2次の一覧から外す（応募はまだありません）">外す</button>` : ''}</td><td class="sm">${this.histCell(s, wait)}</td>`;
+    const lab = t => `<span class="sc-lab">${t}</span>`;
+    const state = wait ? ['wait', '応募先が未確定'] : cur.result === '内定' ? ['won', '内定'] : cur.result ? ['lost', AppsPage.resultLabel(cur.result)] : ['go', '結果待ち'];
+    const id = `<div class="sc-id"><span class="sc-rank" title="就職順位">${r?.jobRank ?? '—'}</span>
+      <div><b class="sc-name">${esc(s.name)}</b>${s.second && (s.second.added || Students.lateEntrant(s)) && !cur ? ` <button class="link-btn" data-unadd="${s.id}" title="2次の一覧から外す（応募はまだありません）">外す</button>` : ''}
+      <div class="sub mono">${esc(s.no3)}</div><span class="sc-state is-${state[0]}">${state[1]}</span></div></div>`;
+    const prev = `<div class="sc-prev">${lab('前の応募（合否を直せます）')}${this.histCell(s, wait)}</div>`;
+    const chk = `<div class="sc-chk">${lab('確認（押すと 空白→〇→済）')}${this.chkChips(s)}</div>`;
     if (wait) {
       const nr = cur ? cur.round + 1 : 2;
-      return `<tr class="res-none">${head}<td colspan="3"><button class="btn btn-sm btn-primary" data-next="${s.id}">${nr}次の応募先を決める</button></td>${this.chkCell(s)}<td></td></tr>`;
+      return `<div class="sc-card is-wait">${id}
+        <div class="sc-now"><button class="btn btn-primary" data-next="${s.id}">${nr}次の応募先を決める</button></div>
+        <div class="sc-hint">応募先を決めると、試験日・合否を入れられます</div>${prev}${chk}</div>`;
     }
     const a = cur, job = Apps.job(a);
-    const fld = (k, type = 'text', cls = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}">`;
-    return `<tr class="res-${a.result || 'none'}">${head}
-      <td class="sm sc-co"><b>${a.round}次</b> ${job ? `<span class="mono">${esc(Derive.short(job))}</span> ${esc(job.company)}<br><span class="sub">${esc(job.jobTitle || '')}</span>` : '—'}</td>
-      <td><div class="sc-stack">${fld('examDate', 'date', 'w-date')}${fld('examTime', 'text', 'w-hm')}</div></td>
-      <td><div class="sc-stack">${AppsPage.resultSelect(a)}${fld('resultDate', 'date', 'w-date')}</div></td>
-      ${this.chkCell(s)}
-      <td><div class="sc-stack">${fld('note', 'text', 'w-memo')}${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">この応募を取り消す</button>` : ''}</div></td></tr>`;
+    const fld = (k, type = 'text', cls = '', ph = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}" ${ph ? `placeholder="${ph}"` : ''}>`;
+    return `<div class="sc-card is-${state[0]}">${id}
+      <div class="sc-now">${lab(`${a.round}次の応募先`)}${job ? `<div class="sc-co"><span class="mono">${esc(Derive.short(job))}</span> <b>${esc(job.company)}</b></div><div class="sub">${esc(job.jobTitle || '')}</div>` : '—'}</div>
+      <div class="sc-exam">${lab('試験日・時間')}<div class="sc-pair">${fld('examDate', 'date', 'w-date')}${fld('examTime', 'text', 'w-hm', 'hh:mm')}</div></div>
+      <div class="sc-res">${lab('合否・結果日')}<div class="sc-pair">${AppsPage.resultSelect(a)}${fld('resultDate', 'date', 'w-date')}</div></div>
+      ${prev}${chk}
+      <div class="sc-memo">${lab('メモ')}${fld('note', 'text', 'w-memo', '')}${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">この応募を取り消す</button>` : ''}</div></div>`;
   },
 };
 
