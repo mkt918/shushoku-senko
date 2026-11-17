@@ -214,7 +214,7 @@ const DEFAULT_TASKS = [
   { id: 't12', when: '8月下旬', title: '受験企業一覧（一斉起案）', page: 'applications' },
   { id: 't13', when: '9月上旬', title: '応募書類の送付（送付状・レターパックラベル）', page: 'applications' },
   { id: 't14', when: '9月中旬〜', title: '試験日・合否・受験報告書の管理', page: 'applications' },
-  { id: 't15', when: '10月〜', title: '2次選考以降の応募', page: 'second' },
+  { id: 't15', when: '10月〜', title: '選考会議（2次）：2次以降の応募先・合否', page: 'second' },
   { id: 't16', when: '毎月初', title: 'ハローワーク報告（様式13・前月末現在）※4月末現在分から', page: 'reports' },
   { id: 't17', when: '随時', title: '内定状況調査・就職者名簿', page: 'reports' },
   { id: 't18', when: '1月ごろ', title: '進路指導まとめ（簡易版）：進路決定を入力し、活動中の人数つきで作成', page: 'yearend' },
@@ -793,7 +793,7 @@ function blankApplication(studentId, jobId, round = 1, pref = 1) {
     docsSent: false,    // 応募書類送付済み
     docsSentDate: '',
     examDate: '', examTime: '',
-    result: '',         // ''（未定）／内定／不採用／辞退
+    result: '',         // ''（結果待ち）／内定／不採用／辞退
     resultDate: '',     // 合否が出た日（様式13の月末集計に使う）
     reportSubmitted: false, // 受験報告書の提出
     note: '',

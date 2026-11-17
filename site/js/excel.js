@@ -240,13 +240,12 @@ const OutImport = {
       const cur = s.dest && s.dest.type === type ? s.dest : {};
       const before = Outcomes.of(s);
       if (before.type && before.type !== type) {   // 進路が変わる：履歴に残し、進路希望をそろえる（応募の辞退は進路決定の画面で行う）
-        if (s.dest) { s.destStash = s.destStash || {}; s.destStash[before.type] = JSON.parse(JSON.stringify(s.dest)); }
-        (s.destLog = s.destLog || []).push({ at: todayISO(), from: before.type, fromDesc: OutcomesPage.desc(before), to: type });
-        s.course = type;
-        s.method = type === '就職' ? ({ 斡旋外: '自己開拓', 公務: '公務員' }[it.dest.jobKind] || '学校斡旋') : '';
+        Outcomes.change(s, { type, method: type === '就職' ? Outcomes.methodOf(it.dest.jobKind) : '' });   // 進路先は、下で入れる
       }
       const filled = Object.fromEntries(Object.entries(it.dest).filter(([, v]) => v !== '' && v != null));
       s.dest = Object.assign({}, cur, filled, { type });
+      // すでに就職でも、斡旋外・公務と分かったら受験方法を合わせる（学校斡旋の選考の対象から外す）
+      if (type === '就職' && (it.dest.jobKind === '斡旋外' || it.dest.jobKind === '公務')) s.method = Outcomes.methodOf(it.dest.jobKind);
       updated++;
     }
     return { added: 0, updated };

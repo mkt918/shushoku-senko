@@ -21,6 +21,45 @@ const OC = {
 };
 
 const Outcomes = {
+  /** 進路先の説明（一覧・変更履歴に出す1行） */
+  desc(d) {
+    if (d.type === '就職') return [d.jobKind, d.company, d.ind ? OC.IND_NAMES[d.ind] : '', d.jobTitle].filter(Boolean).join('　');
+    if (d.type === '進学') return [OC.levelName(d.level), d.school, [d.faculty, d.dept, d.major].filter(Boolean).join(' '), d.exam, d.remarks].filter(Boolean).join('　');
+    if (d.type === 'その他') return d.note || '';
+    return '';
+  },
+  /** 就職の種別（学校斡旋・斡旋外・公務）に合う、生徒・成績の受験方法 */
+  methodOf(jobKind) { return { 学校斡旋: '学校斡旋', 斡旋外: '自己開拓', 公務: '公務員' }[jobKind] || '学校斡旋'; },
+
+  /**
+   * 進路の区分を変える（進学⇔就職など）。次の4つを必ず一緒に行う：
+   *  ・前の進路先を destStash に退避（区分を戻したとき復元する）　・変更履歴 destLog に残す
+   *  ・進路希望（course）と受験方法（method）をそろえる（就職選考の対象かどうかは、この2つで決まる）
+   *  ・2次の一覧に加えた印（second.added）を戻す
+   * type＝新しい区分／to＝履歴に書く行き先（省略は type）／method＝受験方法／dest＝新しい進路先（省略は、呼び出し側があとで入れる）
+   */
+  change(s, { type, to, method = '', dest }) {
+    const was = this.of(s);
+    if (s.dest && was.type) { s.destStash = s.destStash || {}; s.destStash[was.type] = JSON.parse(JSON.stringify(s.dest)); }
+    (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '未入力', fromDesc: this.desc(was), to: to || type });
+    s.course = type;
+    s.method = method;
+    if (dest) s.dest = dest; else delete s.dest;
+    if (s.second && s.second.added) s.second = Object.assign({}, s.second, { added: false });
+    return was;
+  },
+  /** 就職から進路を変えるとき、いまの応募（結果待ち・内定）を辞退にする。確認して、断られたら false（記録は消さない） */
+  async declineActive(s, toLabel) {
+    const a = Apps.current(s.id);
+    if (!a || a.result === '辞退' || a.result === '不採用') return true;
+    const jb = Apps.job(a);
+    const ok = await UI.confirm(`この生徒には${a.result === '内定' ? '内定' : '結果待ち'}の記録があります${jb ? `（${shortCompany(jb.shortName || jb.company)}）` : ''}。\n進路を「${toLabel}」に変えると、その応募を「辞退」として記録し、求人の枠を空けます。\n（応募の記録は消えません）`, { title: '就職から進路を変えます', ok: '変えて辞退にする', danger: true });
+    if (!ok) return false;
+    a.result = '辞退'; a.resultDate = a.resultDate || todayISO();
+    a.note = (a.note ? a.note + '／' : '') + `進路変更（${toLabel}）のため辞退`;
+    return true;
+  },
+
   jobKindFromMethod(m) { return m === '自己開拓' || m === '縁故' ? '斡旋外' : m === '公務員' ? '公務' : '学校斡旋'; },
 
   /** 生徒の進路先（入力した内容＋内定からの自動）。status：決定／活動中 */

@@ -381,7 +381,7 @@ const SendDocs = {
     return f === 'changed' ? d.changed : f === 'unchecked' ? !job.sendChecked : f === 'noaddr' ? !d.address : true;
   },
   groups() {
-    const min = this.state.minRound || 1;     // 2次応募の画面では 2（2次以降の応募先だけ）
+    const min = this.state.minRound || 1;     // 選考会議（2次）の画面では 2（2次以降の応募先だけ）
     return this.groupsOf(this.state.f, min);
   },
   /** 絞り込み f の求人グループ。「送付済み」は送付済みの応募だけ、ほかは未送付の応募だけ */

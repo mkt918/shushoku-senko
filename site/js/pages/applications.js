@@ -66,7 +66,7 @@ const AppsPage = {
     const all = Apps.currents(), need = this.needNext();
     const cnt = k => all.filter(x => x.a.result === k).length;
     return `<div class="stats stats-sm">
-        <div class="stat"><span class="stat-label">応募中（確定済み）</span><span class="stat-val">${all.length}</span><span class="stat-unit">人</span></div>
+        <div class="stat"><span class="stat-label">応募先が確定</span><span class="stat-val">${all.length}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">〇 内定</span><span class="stat-val">${cnt('内定')}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">結果待ち</span><span class="stat-val">${all.filter(x => !x.a.result).length}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">次の応募先が必要</span><span class="stat-val">${need.length}</span><span class="stat-unit">人</span></div>
@@ -179,13 +179,9 @@ const AppsPage = {
   async changeCourse(s, kind) {
     const to = { edu: '進学', self: '自己開拓', home: '家事手伝い' }[kind];
     if (!await UI.confirm(`${Students.label(s)} の進路を「${to}」に変更します。\n学校斡旋の就職選考（1次・2次）の一覧からは外れます。\n（応募の記録は消えません。変更の履歴は進路決定に残ります）`, { title: '進路を変更します', ok: `${to}に変更する` })) return;
-    const was = Outcomes.of(s);
-    if (s.dest && was.type) { s.destStash = s.destStash || {}; s.destStash[was.type] = JSON.parse(JSON.stringify(s.dest)); }
-    (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '就職', fromDesc: OutcomesPage.desc(was), to: kind === 'edu' ? '進学' : kind === 'home' ? 'その他（家事手伝い）' : `就職（${to}）` });
-    if (kind === 'edu') { s.course = '進学'; s.method = ''; s.dest = { type: '進学', status: '活動中' }; }
-    else if (kind === 'home') { s.course = '就職'; s.method = to; s.dest = { type: 'その他', status: '決定', note: '家事手伝い' }; }   // 進路指導まとめでは「その他」
-    else { s.course = '就職'; s.method = to; s.dest = { type: '就職', status: '活動中', jobKind: '斡旋外' }; }
-    if (s.second) s.second = Object.assign({}, s.second, { added: false });
+    if (kind === 'edu') Outcomes.change(s, { type: '進学', method: '', dest: { type: '進学', status: '活動中' } });
+    else if (kind === 'home') Outcomes.change(s, { type: '就職', to: 'その他（家事手伝い）', method: to, dest: { type: 'その他', status: '決定', note: '家事手伝い' } });   // 進路指導まとめでは「その他」
+    else Outcomes.change(s, { type: '就職', to: `就職（${to}）`, method: to, dest: { type: '就職', status: '活動中', jobKind: '斡旋外' } });
     Store.changed(); UI.refresh();
     UI.toast(`${s.name || s.no3} の進路を「${to}」に変更しました`);
   },

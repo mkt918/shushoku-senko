@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   7. 2次応募（1次で内定しなかった生徒の、2次以降の応募先と結果）
+   7. 選考会議（2次）（1次で内定しなかった生徒の、2次以降の応募先と結果）
    ============================================================ */
 
 /** 2次選考会議の確認リスト（空白→〇→済→空白 と押すたびに変わる）。生徒ごとに、いまの次（2次・3次…）の分を記録する */
@@ -47,12 +47,12 @@ const SecondPage = {
       </div>
       <div class="stats stats-sm">
         <div class="stat"><span class="stat-label">対象の生徒</span><span class="stat-val">${all.length}</span><span class="stat-unit">人</span></div>
-        <div class="stat"><span class="stat-label">応募先が未定</span><span class="stat-val">${wait.length}</span><span class="stat-unit">人</span></div>
+        <div class="stat"><span class="stat-label">応募先が未確定</span><span class="stat-val">${wait.length}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">結果待ち</span><span class="stat-val">${going.length}</span><span class="stat-unit">人</span></div>
         <div class="stat"><span class="stat-label">〇 内定</span><span class="stat-val">${won.length}</span><span class="stat-unit">人</span></div>
       </div>
       <div class="toolbar">
-        <div class="seg">${[['', 'すべて'], ['未定', '応募先が未定'], ['待', '結果待ち'], ['内定', '内定']]
+        <div class="seg">${[['', 'すべて'], ['未定', '応募先が未確定'], ['待', '結果待ち'], ['内定', '内定']]
           .map(([v, l]) => `<button class="${f === v ? 'on' : ''}" data-filter="${v}">${l}</button>`).join('')}</div>
       </div>
       ${rows.length ? `<div class="table-wrap"><table class="tbl tbl-edit tbl-apps" id="scTable">
@@ -86,7 +86,7 @@ const SecondPage = {
             Store.changed();
           }
         }
-        UI.refresh();      // 並び（応募先が未定／結果待ち）が変わるので、この画面は描き直す
+        UI.refresh();      // 並び（応募先が未確定／結果待ち）が変わるので、この画面は描き直す
       });
       tbl.addEventListener('click', async e => {
         const c = e.target.closest('[data-chk]');
@@ -135,10 +135,7 @@ const SecondPage = {
     if (!Students.isJobSeeker(s)) {
       const was = Outcomes.of(s);
       if (!await UI.confirm(`${Students.label(s)} は、いまの進路が「${was.type || s.course || '未入力'}」です。\n進路を「就職（学校斡旋）」に変えて、2次の一覧に加えます。\n（変更の履歴は進路決定に残ります）`, { title: '進路を就職に変えます', ok: '変えて追加する' })) return;
-      if (s.dest && was.type) { s.destStash = s.destStash || {}; s.destStash[was.type] = JSON.parse(JSON.stringify(s.dest)); }
-      (s.destLog = s.destLog || []).push({ at: todayISO(), from: was.type || '未入力', fromDesc: OutcomesPage.desc(was), to: '就職' });
-      s.course = '就職'; s.method = '学校斡旋';
-      s.dest = { type: '就職', status: '活動中', jobKind: '学校斡旋' };
+      Outcomes.change(s, { type: '就職', method: '学校斡旋', dest: { type: '就職', status: '活動中', jobKind: '学校斡旋' } });
     }
     s.second = Object.assign({}, s.second, { added: true, removed: false });
     Store.changed(); UI.refresh();
@@ -179,7 +176,7 @@ const SecondPage = {
     });
   },
 
-  /** 前の応募（合否を直せる）。応募先が未定の人は、いちばん新しい応募（不採用にした応募）も直せる */
+  /** 前の応募（合否を直せる）。応募先が未確定の人は、いちばん新しい応募（不採用にした応募）も直せる */
   histCell(s, includeCurrent) {
     const cur = Apps.current(s.id);
     const list = Apps.of(s.id).filter(a => a.confirmed && (includeCurrent || a !== cur)).sort((a, b) => a.round - b.round);

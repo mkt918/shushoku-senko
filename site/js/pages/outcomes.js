@@ -43,12 +43,7 @@ const OutcomesPage = {
     redraw();
   },
 
-  desc(d) {
-    if (d.type === '就職') return [d.jobKind, d.company, d.ind ? OC.IND_NAMES[d.ind] : '', d.jobTitle].filter(Boolean).join('　');
-    if (d.type === '進学') return [OC.levelName(d.level), d.school, [d.faculty, d.dept, d.major].filter(Boolean).join(' '), d.exam, d.remarks].filter(Boolean).join('　');
-    if (d.type === 'その他') return d.note || '';
-    return '';
-  },
+  desc(d) { return Outcomes.desc(d); },
 
   draw(el) {
     const st = this.state, q = toHalf(st.q).trim();
@@ -152,25 +147,8 @@ const OutcomesPage = {
     if (res === 'save') {
       const v = {}; $$('[data-k]', body).forEach(e => { v[e.dataset.k] = e.value.trim(); });
       const changed = !!v.type && v.type !== cur.type;
-      if (changed && cur.type === '就職') {
-        const a = Apps.current(s.id);
-        if (a && a.result !== '辞退' && a.result !== '不採用') {
-          const jb = Apps.job(a);
-          const ok = await UI.confirm(`この生徒には${a.result === '内定' ? '内定' : '応募中'}の記録があります${jb ? `（${shortCompany(jb.shortName || jb.company)}）` : ''}。\n進路を「${v.type}」に変えると、その応募を「辞退」として記録し、求人の枠を空けます。\n（応募の記録は消えません）`, { title: '就職から進路を変えます', ok: '変えて辞退にする', danger: true });
-          if (!ok) return;
-          a.result = '辞退'; a.resultDate = a.resultDate || todayISO();
-          a.note = (a.note ? a.note + '／' : '') + `進路変更（${v.type}）のため辞退`;
-        }
-      }
-      if (changed) {
-        if (cur.type && s.dest) { s.destStash = s.destStash || {}; s.destStash[cur.type] = JSON.parse(JSON.stringify(s.dest)); }
-        s.destLog = s.destLog || [];
-        s.destLog.push({ at: todayISO(), from: cur.type || '未入力', fromDesc: this.desc(cur), to: v.type });
-        // 就職選考の対象かどうかは進路希望（course）と受験方法（method）で決まるので、そろえる
-        s.course = v.type;
-        if (v.type === '就職') s.method = { 学校斡旋: '学校斡旋', 斡旋外: '自己開拓', 公務: '公務員' }[v.jobKind] || '学校斡旋';
-        else s.method = '';
-      }
+      if (changed && cur.type === '就職' && !await Outcomes.declineActive(s, v.type)) return;
+      if (changed) Outcomes.change(s, { type: v.type, method: v.type === '就職' ? Outcomes.methodOf(v.jobKind) : '' });   // 進路先は、下で入れる
       if (!v.type) delete s.dest;
       else {
         const d = { type: v.type, status: v.status || '決定' };
