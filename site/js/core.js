@@ -627,6 +627,8 @@ const Store = {
         else ng(`ファイルを作る・書く：失敗しました（${e.name}：${e.message}）`);
       }
     }
+    info(this.saveLog.length ? '直近の保存の記録：' : '直近の保存の記録：まだ保存の操作がありません');
+    this.saveLog.slice(-10).forEach(m => info(m));
     try { const t = await this._payload(); ok(`いまのデータを保存用の形にする：できます（${Math.round(t.length / 1024)} KB）`); } catch (e) { ng('いまのデータを保存用の形にする：失敗しました（' + (e.message || e.name) + '）'); }
     return L;
   },
@@ -658,7 +660,21 @@ const Store = {
     return true;
   },
 
-  async save() {
+  /* ---------- 保存の記録（「設定」→［保存のテスト］に出る。うまく保存できないとき、原因を探す手がかり） ---------- */
+  saveLog: [],
+  _log(m) { this.saveLog.push(new Date().toTimeString().slice(0, 8) + '　' + m); if (this.saveLog.length > 30) this.saveLog.shift(); },
+  /** 保存の操作を記録し、8秒たっても終わらないときは知らせる（保存先の画面や許可の確認が、別の窓の後ろに出ていることがある） */
+  async _tracked(label, fn) {
+    this._log(label + '（保存先：' + (this.fileHandle ? '「' + this.fileName + '」' : '未設定') + '）');
+    const t = setTimeout(() => { this._log(label + '：8秒たっても終わりません'); UI.toast('保存が終わっていません。保存先を選ぶ画面や、書き込みの許可の確認が、ほかの窓の後ろに出ていないか確認してください', 'warn'); }, 8000);
+    try { const r = await fn(); this._log(label + ' → ' + (r ? '成功' : '保存されませんでした（キャンセルまたは失敗）')); return r; }
+    catch (e) { this._log(label + ' → 例外 ' + (e.name || '') + ' ' + (e.message || '')); throw e; }
+    finally { clearTimeout(t); }
+  },
+  async save() { return this._tracked('上書き保存', () => this._save()); },
+  async saveAs() { return this._tracked('名前を付けて保存', () => this._saveAs()); },
+
+  async _save() {
     this.lastMode = 'file';
     if (this.readOnly) return false;
     if (this.fileHandle) {
@@ -674,6 +690,7 @@ const Store = {
       } catch (e) {
         if (e.name === 'AbortError') return false;
         console.warn('上書き保存に失敗', e);
+        this._log('上書きに失敗：' + (e.name || '') + ' ' + (e.message || ''));
         // 消えてしまう通知ではなく、理由が読めるダイアログで知らせる
         const why = e.message === 'denied' ? 'このファイルへの書き込みが許可されませんでした。' : `${e.name || ''} ${e.message || ''}`.trim();
         const pick = await UI.modal({
@@ -687,7 +704,7 @@ const Store = {
     return this.saveAs();
   },
 
-  async saveAs() {
+  async _saveAs() {
     this.lastMode = 'file';
     if (this.readOnly) return false;
     const name = this.fileName || this.defaultFileName();
@@ -707,6 +724,7 @@ const Store = {
       } catch (e) {
         if (e.name === 'AbortError') return false;
         if (!(e.name === 'SecurityError' || e.name === 'NotAllowedError')) throw e;
+        this._log('ファイルを作る画面が使えず、ダウンロードに切り替え：' + e.name + ' ' + (e.message || ''));
       }
     }
     // フォールバック：ダウンロード
