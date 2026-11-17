@@ -41,6 +41,7 @@ const Outcomes = {
       d.occ = d.occ || (occ ? occ.mhlw : '');
       d.jobTitle = d.jobTitle || job.jobTitle || '';
       d.status = d.status || '決定';
+      if (d.status === '活動中') { d.status = '決定'; d.auto = true; }   // 内定が出たら、活動中のままにせず決定にする
     }
     if (d.type && !d.status) d.status = '決定';
     return d;
