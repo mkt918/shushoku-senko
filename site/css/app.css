@@ -798,13 +798,6 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .pin-i { font-size: 13px; white-space: nowrap; cursor: pointer; }
 
 /* 選考会議（2次）：左右にスクロールしても、就職順位・番号・氏名は左に固定 */
-#scTable th:nth-child(-n+3), #scTable td:nth-child(-n+3) { position: sticky; z-index: 1; background: var(--surface); }
-#scTable thead th:nth-child(-n+3) { z-index: 3; background: var(--surface-2); }
-#scTable th:nth-child(1), #scTable td:nth-child(1) { left: 0; min-width: 56px; max-width: 56px; }
-#scTable th:nth-child(2), #scTable td:nth-child(2) { left: 56px; min-width: 56px; max-width: 56px; }
-#scTable th:nth-child(3), #scTable td:nth-child(3) { left: 112px; min-width: 104px; box-shadow: 2px 0 0 var(--line); }
-#scTable tr.res-内定 td:nth-child(-n+3) { background: var(--ok-soft); }
-#scTable tr.res-不採用 td:nth-child(-n+3), #scTable tr.res-辞退 td:nth-child(-n+3) { background: var(--surface-2); }
 
 /* 生徒の編集画面 ⑧ 進路先 */
 .dest-sum { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
@@ -829,19 +822,6 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .card-todo { border-left: 4px solid var(--warn, #c98a00); }
 
 /* 選考会議（2次）の表：列を減らし、押しやすく */
-#scTable td { vertical-align: middle; padding: 8px 8px; }
-#scTable .sc-stack { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
-#scTable .sc-stack input, #scTable .sc-stack select { height: 32px; }
-#scTable .sc-stack .w-date { width: 150px !important; }
-#scTable .sc-stack .w-hm { width: 82px !important; }
-#scTable .sc-stack .w-memo { width: 150px !important; }
-#scTable select { height: 32px; }
-#scTable .sc-co { white-space: normal; min-width: 170px; max-width: 220px; }
-#scTable .sc-h { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
-#scTable .sc-hc { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#scTable .sc-h select { width: 92px; }
-#scTable .chk-th2 { min-width: 150px; white-space: normal; line-height: 1.3; font-size: 12px; }
-#scTable tbody tr:hover td:not(:nth-child(-n+3)) { background: var(--accent-soft); }
 .chk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: 152px; }
 .chk-chip { display: flex; align-items: center; justify-content: space-between; gap: 4px; height: 32px; padding: 0 8px; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .chk-chip b { min-width: 1.2em; text-align: center; font-size: 14px; color: var(--accent); }
@@ -849,12 +829,6 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .chk-chip.is-on { background: var(--accent-soft); border-color: var(--accent); }
 .chk-chip.is-done { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
 .chk-chip.is-done b { color: var(--ok); }
-#scTable .sc-hc { max-width: 84px; }
-#scTable .sc-h select { width: 84px; }
-#scTable .sc-stack .w-date { width: 138px !important; }
-#scTable .sc-stack .w-memo { width: 130px !important; }
-#scTable .sc-co { min-width: 150px; max-width: 190px; }
-#scTable td { padding: 8px 6px; }
 .diag li { margin: 4px 0; }
 .diag-ng { color: var(--danger, #b42318); font-weight: 700; }
 
@@ -862,8 +836,6 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .chk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 188px; }
 .chk-chip { min-width: 0; overflow: hidden; padding: 0 6px; }
 .chk-chip span { overflow: hidden; text-overflow: ellipsis; }
-#scTable td:nth-child(8) { min-width: 200px; }
-#scTable td:nth-child(9) { min-width: 150px; }
 
 /* ===== 選考会議（2次）：生徒ごとのカード ===== */
 .sc-list { display: flex; flex-direction: column; gap: 10px; }
@@ -916,3 +888,18 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .sc-memo .link-btn { margin-left: auto; color: var(--danger, #b42318); white-space: nowrap; font-size: 12px; }
 .sc-card.is-wait .sc-now .btn { min-height: 40px; padding: 0 18px; font-size: 15px; }
 .sc-state { margin-top: 6px; }
+
+/* 2次カード：前の応募は全幅で1行、確認とメモは同じ行 */
+.sc-card { grid-template-columns: 190px minmax(0, 1.2fr) 230px 230px; grid-template-areas: "id now exam res" "id prev prev prev" "id chk memo memo"; }
+.sc-card.is-wait { grid-template-areas: "id now hint hint" "id prev prev prev" "id chk chk chk"; }
+.sc-card .sc-h { grid-template-columns: 2.6em minmax(0, 1fr) 118px auto; }
+.sc-card .sc-h select { width: 118px; min-width: 118px; padding-left: 8px; padding-right: 22px; }
+.sc-card .sc-hc { white-space: normal; overflow: visible; text-overflow: clip; }
+.sc-card .sc-pair select { min-width: 118px; }
+.sc-memo { border-top: 1px dashed var(--line-strong); padding-top: 10px; align-items: flex-end; }
+.sc-memo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 8px; }
+.sc-memo .sc-lab { grid-column: 1 / -1; }
+.sc-card .sc-memo input { max-width: none; width: 100% !important; min-width: 0; }
+.sc-memo .link-btn { margin-left: 0; height: 36px; }
+.sc-co .sub { font-weight: 400; margin-left: 6px; }
+@media (max-width: 1180px) { .sc-card, .sc-card.is-wait { grid-template-columns: 180px minmax(0, 1fr); grid-template-areas: "id now" "id exam" "id res" "prev prev" "chk chk" "memo memo"; } }

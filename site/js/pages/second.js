@@ -198,11 +198,11 @@ const SecondPage = {
     const a = cur, job = Apps.job(a);
     const fld = (k, type = 'text', cls = '', ph = '') => `<input type="${type}" data-aid="${a.id}" data-f="${k}" value="${esc(a[k] || '')}" class="${cls}" ${ph ? `placeholder="${ph}"` : ''}>`;
     return `<div class="sc-card is-${state[0]}">${id}
-      <div class="sc-now">${lab(`${a.round}次の応募先`)}${job ? `<div class="sc-co"><span class="mono">${esc(Derive.short(job))}</span> <b>${esc(job.company)}</b></div><div class="sub">${esc(job.jobTitle || '')}</div>` : '—'}</div>
+      <div class="sc-now">${lab(`${a.round}次の応募先`)}${job ? `<div class="sc-co"><span class="mono">${esc(Derive.short(job))}</span> <b>${esc(job.company)}</b> <span class="sub">${esc(job.jobTitle || '')}</span></div>` : '—'}</div>
       <div class="sc-exam">${lab('試験日・時間')}<div class="sc-pair">${fld('examDate', 'date', 'w-date')}${fld('examTime', 'text', 'w-hm', 'hh:mm')}</div></div>
       <div class="sc-res">${lab('合否・結果日')}<div class="sc-pair">${AppsPage.resultSelect(a)}${fld('resultDate', 'date', 'w-date')}</div></div>
       ${prev}${chk}
-      <div class="sc-memo">${lab('メモ')}${fld('note', 'text', 'w-memo', '')}${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">この応募を取り消す</button>` : ''}</div></div>`;
+      <div class="sc-memo">${lab('メモ')}${fld('note', 'text', 'w-memo', '')}${a.round >= 2 ? `<button class="link-btn" data-delapp="${a.id}" title="この応募を取り消す">取り消し</button>` : ''}</div></div>`;
   },
 };
 
