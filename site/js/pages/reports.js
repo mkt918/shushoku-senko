@@ -6,7 +6,7 @@
 const MIC_CODES = ['A', 'B', 'C', 'D', 'E', 'F', 'G1', 'G2', 'H1', 'H2', 'H3', 'H4', 'H5', 'I', 'J', 'K', 'L'];
 
 const Reports = {
-  state: { tab: 'form13', month: null },
+  state: { tab: 'form13', month: null, bMonth: null, scope: '' },
 
   /** 報告の対象月の選択肢と月末日。4月末現在から、同一年度（4月〜翌年3月）で行う */
   months() {
@@ -57,6 +57,46 @@ const Reports = {
     return { groups, cell, unknown };
   },
 
+  /** 教育委員会への卒業予定者内定状況報告（年3回：10月・11月・2月）。学科は文部科学省の調査項目（dept.stat）で絞る。scope が空なら全体 */
+  boardMonths() { return this.months().filter(x => [10, 11, 2].includes(x.m)); },
+  board(asOf, scope) {
+    const blank = () => ({ grad: 0, wIn: 0, wOut: 0, dIn: 0, dOut: 0 });
+    const c = { 男: blank(), 女: blank() };
+    let noGender = 0, noJob = 0;
+    for (const st of Store.data.students) {
+      const d = Students.dept(st);
+      if (scope && (!d || d.stat !== scope)) continue;
+      if (st.gender !== '男' && st.gender !== '女') { noGender++; continue; }
+      const r = c[st.gender];
+      r.grad++;
+      if (!Students.isJobSeeker(st)) continue;
+      const a = Apps.current(st.id), job = Apps.job(a);
+      if (!job) noJob++;
+      const out = !!job && job.workArea === '県外';
+      r[out ? 'wOut' : 'wIn']++;                // 応募先が未確定の人は、県内に数える（注記を出す）
+      if (job && a.result === '内定' && (!a.resultDate || a.resultDate <= asOf)) r[out ? 'dOut' : 'dIn']++;
+    }
+    return { c, noGender, noJob };
+  },
+  boardScopes() { return [...new Set(Store.data.settings.departments.map(d => d.stat).filter(Boolean))]; },
+  boardRows(asOf, scope) {
+    const { c, noGender, noJob } = this.board(asOf, scope);
+    const tot = {}; for (const k of ['grad', 'wIn', 'wOut', 'dIn', 'dOut']) tot[k] = c.男[k] + c.女[k];
+    const rate = r => { const A = r.wIn + r.wOut, B = r.dIn + r.dOut; return A ? (B / A * 100).toFixed(1) : ''; };
+    const line = (label, r) => [label, r.grad, r.wIn, r.wOut, r.wIn + r.wOut, r.dIn, r.dOut, r.dIn + r.dOut, rate(r)];
+    return { rows: [line('男', c.男), line('女', c.女), line('合計', tot)], noGender, noJob };
+  },
+  boardHtml(asOf, scope) {
+    const { rows } = this.boardRows(asOf, scope);
+    const unit = v => (v === '' || typeof v === 'string') ? v : this.zv(v) === '' ? '' : v + ' 人';
+    const td = (v, j, i) => `<td class="num ${(j === 4 || j === 7 || j === 8 || i === 2) ? 'p-shade' : ''}">${j === 8 ? esc(v) : unit(v)}</td>`;
+    return `<p class="p-sub">(1) 令和${reiwa(Store.data.year) + 1}年３月高等学校卒業（予定）者の就職（内定）状況${scope ? '　［' + esc(scope) + '］' : ''}</p>
+      <table class="p-table f13"><thead>
+        <tr><th rowspan="2"></th><th rowspan="2">卒業<br>（予定）<br>者数</th><th colspan="3">就職希望者数</th><th colspan="3">就職（内定）者数</th><th rowspan="2">就職<br>（内定）率<br>(B)/(A)×100</th></tr>
+        <tr><th>県内</th><th>県外</th><th>小計(A)</th><th>県内</th><th>県外</th><th>小計(B)</th></tr></thead>
+      <tbody>${rows.map((r, i) => `<tr><th>${r[0]}</th>${r.slice(1).map((v, j) => td(v, j + 1, i)).join('')}</tr>`).join('')}</tbody></table>`;
+  },
+
   /** 内定・受験一覧（現在の応募先） */
   appList() {
     const s = Store.data.settings;
@@ -96,7 +136,7 @@ const Reports = {
   render(view) {
     const st = this.state;
     if (st.month == null) st.month = this.defaultMonth();
-    const tabs = [['form13', 'ハローワーク様式13'], ['list', '内定・受験一覧'], ['roster', '就職者名簿'], ['stat', '統計調査']];
+    const tabs = [['form13', 'ハローワーク様式13'], ['list', '内定・受験一覧'], ['roster', '就職者名簿'], ['stat', '統計調査'], ['board', '教育委員会 内定状況']];
     view.innerHTML = `
       <div class="page-head"><div><h1>報告・統計</h1>
       <p class="lead">選考会議の確定と「応募・受験」の合否から自動で集計します。Excel への転記は不要です。</p></div></div>
@@ -211,6 +251,47 @@ const Reports = {
     const noCode = t.reduce((n, r) => n + r.noCode, 0);
     this.drawGeneric(el, '統計調査（厚生労働省）', head, body, [],
       `内定者を日本標準職業分類（総務省）で数えています。${noCode ? `職業分類コードが未入力の内定者が ${noCode} 人います（求人票で入力してください）。` : ''}`, true);
+  },
+
+  /* ---------- 教育委員会 内定状況報告 ---------- */
+  draw_board(el) {
+    const st = this.state;
+    const ms = this.boardMonths();
+    if (!ms.some(x => x.m === st.bMonth)) { const p = ms.filter(x => x.asOf < todayISO()); st.bMonth = (p.length ? p[p.length - 1] : ms[0]).m; }
+    const mo = ms.find(x => x.m === st.bMonth);
+    const scopes = this.boardScopes();
+    if (st.scope && st.scope !== '*' && !scopes.includes(st.scope)) st.scope = '';
+    const list = st.scope === '*' ? scopes : [st.scope];
+    const { noGender, noJob } = this.boardRows(mo.asOf, st.scope === '*' ? '' : st.scope);
+    el.innerHTML = `
+      <div class="toolbar">
+        <select id="bdMonth">${ms.map(x => `<option value="${x.m}" ${x.m === st.bMonth ? 'selected' : ''}>${x.label}</option>`).join('')}</select>
+        <select id="bdScope"><option value="">全学科（合計）</option><option value="*" ${st.scope === '*' ? 'selected' : ''}>学科別（すべて）</option>${scopes.map(x => `<option ${x === st.scope ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+        <button class="btn btn-primary" id="bdPrint">印刷</button>
+        <button class="btn" id="bdXlsx">Excel に出力</button>
+      </div>
+      ${noGender ? `<div class="notice notice-warn">性別が未入力の生徒 ${noGender} 人は、集計から外れています。</div>` : ''}
+      ${noJob ? `<div class="notice notice-info">応募先が未確定の就職希望者 ${noJob} 人は、「就職希望者数」の県内に数えています。</div>` : ''}
+      ${list.map(x => `<div class="card f13-wrap">${this.boardHtml(mo.asOf, x)}</div>`).join('')}
+      <p class="help">教育委員会へ年3回（10月・11月・2月）報告します。「${mo.label}」までに内定した人を数えます。県内・県外は求人票の就業場所です。就職（内定）率＝(B)÷(A)×100。学科は文部科学省の調査項目（設定の学科の「統計」）で分けます。</p>`;
+    $('#bdMonth', el).addEventListener('change', e => { st.bMonth = Number(e.target.value); UI.refresh(); });
+    $('#bdScope', el).addEventListener('change', e => { st.scope = e.target.value; UI.refresh(); });
+    $('#bdPrint', el).addEventListener('click', () => {
+      const sc = Store.data.settings.school;
+      Print.open({
+        title: `内定状況報告_${mo.label}`, orientation: 'landscape',
+        html: `<div class="p-page"><p class="p-title">卒業予定者内定状況報告（${esc(mo.label)}）</p>
+          <p class="p-meta"><span>${esc(sc.name)}</span><span>${esc(mo.label)}</span></p>${list.map(x => this.boardHtml(mo.asOf, x)).join('<div style="height:8mm"></div>')}</div>`,
+      });
+    });
+    $('#bdXlsx', el).addEventListener('click', () => {
+      Excel.download(`内定状況報告_${mo.label}.xlsx`, list.map(x => ({
+        name: (x || '全学科').slice(0, 31), widths: [8, 12, 8, 8, 10, 8, 8, 10, 12],
+        rows: [[`(1) 令和${reiwa(Store.data.year) + 1}年３月高等学校卒業（予定）者の就職（内定）状況${x ? '［' + x + '］' : ''}`],
+          ['', '卒業（予定）者数', '就職希望者数', '', '', '就職（内定）者数', '', '', '就職（内定）率'],
+          ['', '', '県内', '県外', '小計(A)', '県内', '県外', '小計(B)', '(B)/(A)×100'], ...this.boardRows(mo.asOf, x).rows],
+      })));
+    });
   },
 
   /** 表のセルの揃え：数は右、番号・コード（数字だけの文字列）は中央 */

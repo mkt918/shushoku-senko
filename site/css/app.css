@@ -903,3 +903,5 @@ details.card-fold > .card { margin: 0 16px 14px; padding: 12px 0 0; }
 .sc-memo .link-btn { margin-left: 0; height: 36px; }
 .sc-co .sub { font-weight: 400; margin-left: 6px; }
 @media (max-width: 1180px) { .sc-card, .sc-card.is-wait { grid-template-columns: 180px minmax(0, 1fr); grid-template-areas: "id now" "id exam" "id res" "prev prev" "chk chk" "memo memo"; } }
+
+.p-sub { font-size: 11pt; font-weight: 700; margin: 4mm 0 2mm; }
