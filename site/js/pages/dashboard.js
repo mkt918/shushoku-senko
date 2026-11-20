@@ -71,7 +71,7 @@ Pages.register({
 
     view.innerHTML = `
       <div class="page-head">
-        <div><h1>${nendoLabel(d.year)}　就職選考</h1>
+        <div><h1>${nendoLabel(d.year)}　就職選考 <small class="app-ver" style="font-size:13px;font-weight:400;color:var(--muted,#667);margin-left:8px">v${esc(APP.version)}</small></h1>
         <p class="lead">令和${reiwa(d.year) + 1}年3月卒業予定者の学校斡旋就職を、このページから順に進めます。</p></div>
       </div>
 
