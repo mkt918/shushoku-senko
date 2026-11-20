@@ -78,12 +78,12 @@ const Reports = {
     }
     return { c, noGender, noJob };
   },
-  /** その月末の時点で就職希望者だったか。あとから就職に加わった人は入れず、月末のあとで進学などに変えた人は入れる（進路の変更履歴で判断） */
+  /** その月末の時点で就職希望者だったか。進学から就職に切り替えた人は入れず、月末のあとで進学などに変えた人は入れる（進路の変更履歴で判断） */
   seekerAt(st, asOf) {
     const log = st.destLog || [];
     if (Students.isJobSeeker(st)) {
       const last = log[log.length - 1];
-      return !(last && last.to === '就職' && last.at > asOf);
+      return !(last && last.to === '就職' && last.from === '進学');   // 進学から就職に切り替えた生徒は、報告に入れない
     }
     const firstAfter = log.find(h => h.at > asOf);
     return !!firstAfter && firstAfter.from === '就職';
