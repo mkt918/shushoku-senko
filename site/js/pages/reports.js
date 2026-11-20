@@ -62,6 +62,7 @@ const Reports = {
   board(asOf, scope) {
     const blank = () => ({ grad: 0, wIn: 0, wOut: 0, dIn: 0, dOut: 0 });
     const c = { 男: blank(), 女: blank() };
+    const base = this.months().find(x => x.m === 10).asOf;
     let noGender = 0, noJob = 0;
     for (const st of Store.data.students) {
       const d = Students.dept(st);
@@ -69,7 +70,7 @@ const Reports = {
       if (st.gender !== '男' && st.gender !== '女') { noGender++; continue; }
       const r = c[st.gender];
       r.grad++;
-      if (!this.seekerAt(st, asOf)) continue;
+      if (!this.seekerAt(st, base)) continue;   // 就職希望者は10月末で確定し、11月・2月も減らさない（統計上の決まり）
       const a = Apps.current(st.id), job = Apps.job(a);
       if (!job) noJob++;
       const out = !!job && job.workArea === '県外';
@@ -283,7 +284,7 @@ const Reports = {
       ${noGender ? `<div class="notice notice-warn">性別が未入力の生徒 ${noGender} 人は、集計から外れています。</div>` : ''}
       ${noJob ? `<div class="notice notice-info">応募先が未確定の就職希望者 ${noJob} 人は、「就職希望者数」の県内に数えています。</div>` : ''}
       ${list.map(x => `<div class="card f13-wrap">${this.boardHtml(mo.asOf, x)}</div>`).join('')}
-      <p class="help">教育委員会へ年3回（10月・11月・2月）報告します。「${mo.label}」までに内定した人を数えます。県内・県外は求人票の就業場所です。就職（内定）率＝(B)÷(A)×100。学科は文部科学省の調査項目（設定の学科の「統計」）で分けます。</p>`;
+      <p class="help">教育委員会へ年3回（10月・11月・2月）報告します。就職希望者数は<b>10月末で確定した人数を、3月まで減らしません</b>（統計上の決まり）。内定者は「${mo.label}」までに内定した人を数えるので、就職から進学に変えた生徒は希望者には残り、内定者には入らず、内定率は100%になりません。進学から就職に切り替えた生徒は、報告に入れません。県内・県外は求人票の就業場所です。就職（内定）率＝(B)÷(A)×100。学科は文部科学省の調査項目（設定の学科の「統計」）で分けます。</p>`;
     $('#bdMonth', el).addEventListener('change', e => { st.bMonth = Number(e.target.value); UI.refresh(); });
     $('#bdScope', el).addEventListener('change', e => { st.scope = e.target.value; UI.refresh(); });
     $('#bdPrint', el).addEventListener('click', () => {
