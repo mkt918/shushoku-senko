@@ -69,14 +69,24 @@ const Reports = {
       if (st.gender !== '男' && st.gender !== '女') { noGender++; continue; }
       const r = c[st.gender];
       r.grad++;
-      if (!Students.isJobSeeker(st)) continue;
+      if (!this.seekerAt(st, asOf)) continue;
       const a = Apps.current(st.id), job = Apps.job(a);
       if (!job) noJob++;
       const out = !!job && job.workArea === '県外';
       r[out ? 'wOut' : 'wIn']++;                // 応募先が未確定の人は、県内に数える（注記を出す）
-      if (job && a.result === '内定' && (!a.resultDate || a.resultDate <= asOf)) r[out ? 'dOut' : 'dIn']++;
+      if (Students.isJobSeeker(st) && job && a.result === '内定' && (!a.resultDate || a.resultDate <= asOf)) r[out ? 'dOut' : 'dIn']++;
     }
     return { c, noGender, noJob };
+  },
+  /** その月末の時点で就職希望者だったか。あとから就職に加わった人は入れず、月末のあとで進学などに変えた人は入れる（進路の変更履歴で判断） */
+  seekerAt(st, asOf) {
+    const log = st.destLog || [];
+    if (Students.isJobSeeker(st)) {
+      const last = log[log.length - 1];
+      return !(last && last.to === '就職' && last.at > asOf);
+    }
+    const firstAfter = log.find(h => h.at > asOf);
+    return !!firstAfter && firstAfter.from === '就職';
   },
   boardScopes() { return [...new Set(Store.data.settings.departments.map(d => d.stat).filter(Boolean))]; },
   boardRows(asOf, scope) {
